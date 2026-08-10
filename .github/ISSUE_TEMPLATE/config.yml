@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Design decisions and trade-offs
+    url: https://github.com/Sri-Ln/sourcebook/blob/main/docs/superpowers/specs/2026-08-10-sourcebook-extension-design.md
+    about: Much of what looks like a missing feature was deliberately deferred. The spec says what and why.
+  - name: rolecraft
+    url: https://github.com/Sri-Ln/rolecraft
+    about: For questions about what happens to a job description after sourcebook exports it.

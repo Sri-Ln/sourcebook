@@ -1,0 +1,71 @@
+name: Extraction broke
+description: The Save button did not appear, or saved with fields missing
+labels: ["bug", "selector-rot"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        LinkedIn changes their markup regularly, so this is expected
+        maintenance rather than a surprise. The fix is usually to refresh a
+        fixture and update selectors.
+
+        **Please do not paste raw page HTML into this issue** — it contains a
+        real person's data. Describe the structure instead, or attach a scrubbed
+        snippet.
+
+  - type: dropdown
+    id: symptom
+    attributes:
+      label: Symptom
+      options:
+        - Save button never appeared
+        - Button appeared but panel was empty
+        - Panel prefilled, but specific fields were missing
+        - Button appeared twice
+        - Button showed stale data from the previous profile
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: fields
+    attributes:
+      label: Which fields were missing
+      options:
+        - label: Name
+        - label: Headline
+        - label: Company
+        - label: Job title
+        - label: Location
+        - label: Compensation
+        - label: Description body
+
+  - type: dropdown
+    id: page-type
+    attributes:
+      label: Page type
+      options:
+        - Profile (/in/...)
+        - Job page (/jobs/view/...)
+        - Job search split pane (/jobs/search?currentJobId=...)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: navigation
+    attributes:
+      label: How did you arrive at the page
+      description: Soft navigation is a distinct failure mode from a fresh load.
+      options:
+        - Fresh page load or hard refresh
+        - Clicked through from another LinkedIn page (no reload)
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: >
+        Was it a layout variant — a company page, a premium profile, a
+        non-English locale? Those often explain it.

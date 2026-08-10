@@ -1,0 +1,47 @@
+name: Feature request
+description: Suggest something sourcebook should do
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve
+      description: >
+        Describe the friction, not the feature. What are you doing today that
+        is tedious, error-prone, or impossible?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Recruiter capture
+        - Job description capture
+        - rolecraft export
+        - Popup / list management
+        - Sync and storage
+        - Cross-browser support
+        - Something else
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      description: >
+        sourcebook deliberately does not bulk-scrape LinkedIn or send outreach
+        on your behalf. Both risk your account and would get the extension
+        pulled from stores.
+      options:
+        - label: This does not involve bulk scraping or automated messaging
+          required: true
