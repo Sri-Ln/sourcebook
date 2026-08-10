@@ -233,8 +233,6 @@ gh api -X PATCH repos/Sri-Ln/sourcebook \
 
 **Review loop:** branch → implement test-first → open PR with test evidence → **stop, never self-merge** → reviewer comments → each comment addressed as its own commit with a threaded reply → reviewer merges. Review feedback is verified technically rather than reflexively implemented; a comment that appears incorrect gets a reasoned response instead of a bad change.
 
-**Commit authorship:** repo init, `README`, `LICENSE`, `.gitignore`, this spec, the WXT scaffold, and the CI workflow are authored solely by the repo owner, with no Claude co-author trailer. Annotations begin with the first feature branch.
-
 ## Phases
 
 | Phase | Scope |
