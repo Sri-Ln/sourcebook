@@ -1,0 +1,9 @@
+{
+  // WXT's generated config already sets strict, noUncheckedIndexedAccess,
+  // noImplicitOverride, noFallthroughCasesInSwitch, and verbatimModuleSyntax.
+  // Only add what it does not cover, so there is one source of truth.
+  "extends": "./.wxt/tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  }
+}
