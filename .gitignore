@@ -22,7 +22,10 @@ dist/
 # Scrubbed fixtures — same markup structure, every human detail replaced with
 # placeholders — live in tests/fixtures/scrubbed/ and ARE committed, so CI can
 # run extractor tests against realistic markup.
-tests/fixtures/raw/
+# Ignore the contents, not the directory. Excluding `raw/` outright means git
+# never descends into it, and a negation for .gitkeep would silently do nothing.
+tests/fixtures/raw/*
+!tests/fixtures/raw/.gitkeep
 
 # Implementation plans stay local. Specs are committed because they record why
 # decisions were made, which nothing else captures. Plans are execution
