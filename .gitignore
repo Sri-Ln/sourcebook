@@ -24,6 +24,12 @@ dist/
 # run extractor tests against realistic markup.
 tests/fixtures/raw/
 
+# Implementation plans stay local. Specs are committed because they record why
+# decisions were made, which nothing else captures. Plans are execution
+# scaffolding, and the GitHub issues already are the plan — a committed copy
+# would drift into a second, stale source of truth within a week.
+docs/superpowers/plans/
+
 # Exported job descriptions, in case an export ever lands in the working tree
 *.export.md
 exports/

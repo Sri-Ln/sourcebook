@@ -44,7 +44,9 @@ Chrome first. Edge, Firefox, and Safari are planned — WXT treats the browser t
 
 ## Contributing
 
-`main` is protected and takes merge commits only. Work happens on `feat/`, `fix/`, `chore/`, `docs/`, or `test/` branches, follows [Conventional Commits](https://www.conventionalcommits.org/), and lands through a reviewed pull request.
+`main` is protected and takes merge commits only. Work happens on prefixed branches, follows [Conventional Commits](https://www.conventionalcommits.org/), and lands through a reviewed pull request.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for commit message format, the review loop, and the test fixture policy.
 
 ## License
 
