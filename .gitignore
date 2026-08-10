@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# WXT build output
+.output/
+.wxt/
+dist/
+*.zip
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Test fixtures — see docs/superpowers/specs for the full policy.
+#
+# Raw captured LinkedIn HTML contains real people's names, headlines, and photo
+# URLs. Those people never agreed to appear in a public repository, so raw
+# captures stay local and are never committed. Use them for development and for
+# diagnosing what moved after a LinkedIn redesign.
+#
+# Scrubbed fixtures — same markup structure, every human detail replaced with
+# placeholders — live in tests/fixtures/scrubbed/ and ARE committed, so CI can
+# run extractor tests against realistic markup.
+tests/fixtures/raw/
+
+# Exported job descriptions, in case an export ever lands in the working tree
+*.export.md
+exports/
+
+# Editor and OS
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

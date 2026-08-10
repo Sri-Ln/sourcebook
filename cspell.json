@@ -1,0 +1,22 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "Ashby",
+    "backchannel",
+    "Greenhouse",
+    "rolecraft",
+    "sourcebook",
+    "sourcer",
+    "sourcers",
+    "Workday",
+    "wxt"
+  ],
+  "ignorePaths": [
+    "node_modules/**",
+    ".output/**",
+    ".wxt/**",
+    "tests/fixtures/**",
+    "package-lock.json"
+  ]
+}

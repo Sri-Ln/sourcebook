@@ -1,0 +1,17 @@
+# Normalize line endings: LF in the repository, native in the working tree.
+# Without this, development on Windows commits CRLF and every diff on another
+# machine looks like the whole file changed.
+* text=auto eol=lf
+
+# Binaries git should never touch
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.zip binary
+
+# Fixtures are compared byte-for-byte; leave them exactly as captured
+tests/fixtures/** -text
