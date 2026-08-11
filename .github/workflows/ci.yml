@@ -1,8 +1,10 @@
 name: CI
 
 on:
+  # No `branches` filter here on purpose. That filter matches the *base* branch,
+  # so restricting it to `main` silently skips CI on stacked PRs — including the
+  # PR that introduced this workflow. Every pull request gets verified.
   pull_request:
-    branches: [main]
   push:
     branches: [main]
 
