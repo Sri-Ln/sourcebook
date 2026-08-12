@@ -9,17 +9,19 @@ import {
 } from './types.js';
 
 /**
- * Returns `null` when the value is acceptable, otherwise a message completing
- * the sentence "<field> ...".
+ * Returns `null` when the value is acceptable, otherwise one or more messages
+ * each completing the sentence "<field> ...". Returning an array lets a nested
+ * validator report every problem it finds rather than only the first.
  */
-type Check = (value: unknown) => string | null;
+type Check = (value: unknown) => string | string[] | null;
 
 interface Shape {
   required: Record<string, Check>;
   optional: Record<string, Check>;
 }
 
-const ISO_8601_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
+const ISO_8601_UTC =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?Z$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -35,10 +37,31 @@ const anyString: Check = (value) => (typeof value === 'string' ? null : 'must be
 
 const isoTimestamp: Check = (value) => {
   if (typeof value !== 'string') return 'must be a string';
-  if (!ISO_8601_UTC.test(value)) {
+
+  const match = ISO_8601_UTC.exec(value);
+  if (!match) {
     return 'must be an ISO 8601 UTC timestamp, e.g. 2026-08-12T10:00:00.000Z';
   }
-  if (Number.isNaN(Date.parse(value))) return 'is not a real date';
+
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) return 'is not a real date';
+
+  // Date.parse silently rolls impossible calendar dates forward:
+  // 2026-02-30T10:00:00Z becomes 2026-03-02T10:00:00Z, matching the shape above
+  // and parsing to a finite number. Comparing the components back is the only
+  // thing that catches it.
+  const part = (index: number) => Number(match[index] ?? 'NaN');
+  const date = new Date(parsed);
+  const roundTrips =
+    date.getUTCFullYear() === part(1) &&
+    date.getUTCMonth() + 1 === part(2) &&
+    date.getUTCDate() === part(3) &&
+    date.getUTCHours() === part(4) &&
+    date.getUTCMinutes() === part(5) &&
+    date.getUTCSeconds() === part(6);
+
+  if (!roundTrips) return 'is not a real calendar date';
+
   return null;
 };
 
@@ -59,19 +82,24 @@ const stringArray: Check = (value) => {
 const recruiterSource: Check = (value) => {
   if (!isRecord(value)) return 'must be an object';
 
+  // Collects rather than returning early, so a source with a bad type, a bad
+  // url, and a stray key reports all three. Bailing on the first would make
+  // fixing imported data a guessing game.
+  const problems: string[] = [];
+
   const typeError = oneOf(SOURCE_TYPES)(value['type']);
-  if (typeError) return `type ${typeError}`;
+  if (typeError) problems.push(`type ${String(typeError)}`);
 
   if ('url' in value && value['url'] !== undefined) {
     const urlError = nonEmptyString(value['url']);
-    if (urlError) return `url ${urlError}`;
+    if (urlError) problems.push(`url ${String(urlError)}`);
   }
 
   for (const key of Object.keys(value)) {
-    if (key !== 'type' && key !== 'url') return `has an unrecognised key: ${key}`;
+    if (key !== 'type' && key !== 'url') problems.push(`has an unrecognised key: ${key}`);
   }
 
-  return null;
+  return problems.length > 0 ? problems : null;
 };
 
 /**
@@ -133,7 +161,12 @@ function parseAgainst<T>(input: unknown, shape: Shape): ParseResult<T> {
   // Checked before anything else. A newer record must be preserved intact, so
   // there is no point reporting field-level complaints about a shape this
   // version was never designed to understand.
-  if (typeof version === 'number' && version > SCHEMA_VERSION) {
+  //
+  // The integer test matters: 1.5 and Infinity are both greater than 1, so a
+  // bare comparison would call them "newer" and instruct the caller to preserve
+  // them untouched. They are not newer, they are corrupt, and they should be
+  // reported as such.
+  if (typeof version === 'number' && Number.isInteger(version) && version > SCHEMA_VERSION) {
     return {
       ok: false,
       reason: 'newer-schema',
@@ -152,19 +185,24 @@ function parseAgainst<T>(input: unknown, shape: Shape): ParseResult<T> {
     errors.push(`schemaVersion must be ${SCHEMA_VERSION}, received ${JSON.stringify(version)}`);
   }
 
+  const record = (field: string, result: string | string[] | null) => {
+    if (!result) return;
+    for (const message of Array.isArray(result) ? result : [result]) {
+      errors.push(`${field} ${message}`);
+    }
+  };
+
   for (const [field, check] of Object.entries(shape.required)) {
     if (!(field in input) || input[field] === undefined) {
       errors.push(`${field} is missing`);
       continue;
     }
-    const message = check(input[field]);
-    if (message) errors.push(`${field} ${message}`);
+    record(field, check(input[field]));
   }
 
   for (const [field, check] of Object.entries(shape.optional)) {
     if (!(field in input) || input[field] === undefined) continue;
-    const message = check(input[field]);
-    if (message) errors.push(`${field} ${message}`);
+    record(field, check(input[field]));
   }
 
   // Silently discarding an unexpected key loses data. Legitimate evolution is

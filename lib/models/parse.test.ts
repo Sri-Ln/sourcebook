@@ -83,6 +83,20 @@ describe('parseRecruiter', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.errors.length).toBeGreaterThan(1);
   });
+
+  it('reports every problem inside source, not just the first', () => {
+    const result = parseRecruiter(
+      validRecruiter({ source: { type: 'telepathy', url: '', nested: 1 } }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      const joined = result.errors.join(' | ');
+      expect(joined).toMatch(/type/);
+      expect(joined).toMatch(/url/);
+      expect(joined).toMatch(/nested/);
+    }
+  });
 });
 
 describe('note length cap', () => {
@@ -115,6 +129,22 @@ describe('schema versioning', () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.errors.join(' ')).toMatch(/schemaVersion/);
+  });
+
+  it('treats a non-integer version as corruption, not a newer schema', () => {
+    // 1.5 > 1 is true, so a naive comparison calls this "newer" and tells the
+    // caller to preserve it untouched. It is not newer; it is broken.
+    const result = parseRecruiter(validRecruiter({ schemaVersion: 1.5 }));
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('invalid');
+  });
+
+  it('treats Infinity as corruption, not a newer schema', () => {
+    const result = parseRecruiter(validRecruiter({ schemaVersion: Infinity }));
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('invalid');
   });
 
   it('distinguishes a newer schema from ordinary corruption', () => {
@@ -188,6 +218,19 @@ describe('parseJobDescription', () => {
 
   it('rejects a non-ISO timestamp', () => {
     const result = parseJobDescription(validJobDescription({ capturedAt: '12 August 2026' }));
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.join(' ')).toMatch(/capturedAt/);
+  });
+
+  it.each([
+    ['2026-02-30T10:00:00.000Z', 'February 30th'],
+    ['2026-04-31T10:00:00.000Z', 'April 31st'],
+  ])('rejects %s, which is %s and does not exist', (timestamp) => {
+    // Date.parse silently rolls these over: 2026-02-30 becomes 2026-03-02. It
+    // matches the ISO shape and parses to a finite number, so nothing catches
+    // it unless the components are compared back.
+    const result = parseJobDescription(validJobDescription({ capturedAt: timestamp }));
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.errors.join(' ')).toMatch(/capturedAt/);

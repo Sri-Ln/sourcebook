@@ -39,7 +39,7 @@ export interface RecruiterSource {
 
 export interface Recruiter {
   id: string;
-  schemaVersion: number;
+  schemaVersion: typeof SCHEMA_VERSION;
   name: string;
   profileUrl: string;
   /** Stable identity when extractable. Vanity URLs are user-changeable and rot. */
@@ -56,7 +56,7 @@ export interface Recruiter {
 
 export interface JobDescription {
   id: string;
-  schemaVersion: number;
+  schemaVersion: typeof SCHEMA_VERSION;
   title: string;
   company: string;
   location?: string;
