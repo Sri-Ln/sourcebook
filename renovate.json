@@ -1,0 +1,35 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "group:allNonMajor", ":semanticCommits"],
+  "labels": ["dependencies"],
+  "schedule": ["before 7am on monday"],
+  "prHourlyLimit": 3,
+  "prConcurrentLimit": 5,
+  "dependencyDashboard": true,
+  "packageRules": [
+    {
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "npm dependencies",
+      "automerge": false
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "GitHub Actions",
+      "automerge": false
+    },
+    {
+      "matchPackageNames": ["typescript"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "typescript",
+      "automerge": false,
+      "minimumReleaseAge": "14 days"
+    },
+    {
+      "matchPackageNames": ["typescript"],
+      "matchUpdateTypes": ["major"],
+      "minimumReleaseAge": "30 days"
+    }
+  ]
+}
