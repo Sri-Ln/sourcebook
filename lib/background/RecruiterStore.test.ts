@@ -181,4 +181,109 @@ describe('RecruiterStore', () => {
       expect((await store.getUsage()).quota).toBe(102_400);
     });
   });
+
+  describe('import', () => {
+    it('writes every valid record', async () => {
+      const summary = await store.importRecruiters([
+        recruiter({ id: 'aaa' }),
+        recruiter({ id: 'bbb' }),
+      ]);
+
+      expect(summary.imported).toBe(2);
+      expect((await store.list()).recruiters).toHaveLength(2);
+    });
+
+    it('imports the good records and reports the bad ones', async () => {
+      // Refusing the whole file for one bad row would make a partly corrupt
+      // backup worthless, which is the opposite of an escape route.
+      const summary = await store.importRecruiters([recruiter({ id: 'good' }), { id: 'bad' }]);
+
+      expect(summary.imported).toBe(1);
+      expect(summary.skipped).toBe(1);
+      expect(summary.errors.length).toBeGreaterThan(0);
+    });
+
+    it('validates on the way in rather than trusting the caller', async () => {
+      // The options page validates too, but the store is the single writer and
+      // is the only place that can actually guarantee this.
+      const summary = await store.importRecruiters([{ id: 'bad', name: 42 }]);
+
+      expect(summary.imported).toBe(0);
+      expect(sync.putCalls).toBe(0);
+    });
+
+    it('reports records that only reached local storage', async () => {
+      sync.putError = new QuotaExceededError('sync storage is full');
+
+      const summary = await store.importRecruiters([recruiter({ id: 'aaa' })]);
+
+      // Counted as imported — the record is safe — but flagged, because telling
+      // the user "1 imported" would leave them believing it had synced.
+      expect(summary.imported).toBe(1);
+      expect(summary.overflowed).toBe(1);
+    });
+
+    it('does nothing for an empty file', async () => {
+      const summary = await store.importRecruiters([]);
+
+      expect(summary).toMatchObject({ imported: 0, skipped: 0 });
+      expect(sync.putCalls).toBe(0);
+    });
+  });
+
+  describe('tag management', () => {
+    beforeEach(async () => {
+      await store.save(recruiter({ id: 'aaa', tags: ['fintech', 'remote'] }));
+      await store.save(recruiter({ id: 'bbb', tags: ['fintech'] }));
+      await store.save(recruiter({ id: 'ccc', tags: ['other'] }));
+      sync.putCalls = 0;
+    });
+
+    const tagsOf = async (id: string) => (await store.get(id))?.tags;
+
+    it('renames a tag everywhere it appears', async () => {
+      await store.renameTag('fintech', 'finance');
+
+      expect(await tagsOf('aaa')).toEqual(['finance', 'remote']);
+      expect(await tagsOf('bbb')).toEqual(['finance']);
+    });
+
+    it('reports how many records changed', async () => {
+      expect(await store.renameTag('fintech', 'finance')).toBe(2);
+    });
+
+    it('writes only the records that changed', async () => {
+      await store.renameTag('fintech', 'finance');
+
+      // Rewriting all three would spend the 120-writes-per-minute budget on a
+      // record whose tags did not move.
+      expect(sync.putCalls).toBe(2);
+      expect(await tagsOf('ccc')).toEqual(['other']);
+    });
+
+    it('writes nothing when no record carries the tag', async () => {
+      expect(await store.renameTag('nonexistent', 'whatever')).toBe(0);
+      expect(sync.putCalls).toBe(0);
+    });
+
+    it('refuses to rename a tag to nothing', async () => {
+      // Silently doing nothing would look identical to a successful rename.
+      await expect(store.renameTag('fintech', '   ')).rejects.toThrow(/name/i);
+      expect(sync.putCalls).toBe(0);
+    });
+
+    it('deletes a tag from every record that carries it', async () => {
+      expect(await store.removeTag('fintech')).toBe(2);
+
+      expect(await tagsOf('aaa')).toEqual(['remote']);
+      expect(await tagsOf('bbb')).toEqual([]);
+      expect(await tagsOf('ccc')).toEqual(['other']);
+    });
+
+    it('deletes the tag without deleting the records carrying it', async () => {
+      await store.removeTag('fintech');
+
+      expect((await store.list()).recruiters).toHaveLength(3);
+    });
+  });
 });

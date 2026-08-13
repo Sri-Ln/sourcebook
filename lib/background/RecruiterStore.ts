@@ -6,6 +6,7 @@ import {
   type StorageUsage,
   type SyncProvider,
 } from '../storage/SyncProvider.js';
+import { removeTagFrom, renameTagIn } from './tags.js';
 import { WriteQueue } from './WriteQueue.js';
 
 /**
@@ -18,6 +19,15 @@ export const OVERFLOW_KEY_PREFIX = 'overflow:r:';
 export type SaveResult =
   | { ok: true; recruiter: Recruiter; overflowed: boolean; usage?: StorageUsage }
   | { ok: false; errors: string[] };
+
+export interface ImportSummary {
+  /** Records that reached storage — including any that only reached local. */
+  imported: number;
+  skipped: number;
+  /** Of the imported, how many sync could not hold. */
+  overflowed: number;
+  errors: string[];
+}
 
 export interface StoreListResult {
   recruiters: Recruiter[];
@@ -107,6 +117,76 @@ export class RecruiterStore {
 
   async getUsage(): Promise<StorageUsage> {
     return this.#sync.getUsage();
+  }
+
+  /**
+   * Writes a batch of records the options page has already dry-run.
+   *
+   * Each goes through `save`, so each is validated here too. The options page
+   * validating first is a courtesy to the user — it lets them see the count
+   * before committing — but the single writer is the only place that can
+   * actually guarantee an unvalidated record never reaches storage.
+   *
+   * One bad row does not abort the batch. Refusing an entire file because one
+   * record is corrupt makes a partly damaged backup worthless, which is the
+   * opposite of what an export is for.
+   */
+  async importRecruiters(records: readonly unknown[]): Promise<ImportSummary> {
+    const summary: ImportSummary = { imported: 0, skipped: 0, overflowed: 0, errors: [] };
+
+    for (const record of records) {
+      const result = await this.save(record);
+
+      if (!result.ok) {
+        summary.skipped += 1;
+        summary.errors.push(...result.errors);
+        continue;
+      }
+
+      summary.imported += 1;
+      if (result.overflowed) summary.overflowed += 1;
+    }
+
+    return summary;
+  }
+
+  /** Returns how many records changed. Throws if the new name is blank. */
+  async renameTag(from: string, to: string): Promise<number> {
+    if (to.trim() === '') {
+      // Doing nothing quietly would be indistinguishable from a rename that
+      // worked, and the user would go looking for a tag that never moved.
+      throw new Error('A tag needs a name.');
+    }
+
+    return this.#rewriteTags((recruiter) => renameTagIn(recruiter, from, to));
+  }
+
+  /** Returns how many records changed. The records themselves are kept. */
+  async removeTag(tag: string): Promise<number> {
+    return this.#rewriteTags((recruiter) => removeTagFrom(recruiter, tag));
+  }
+
+  /**
+   * Applies `change` to every record, writing only those it actually altered.
+   *
+   * The `null`-means-unchanged contract is what keeps this affordable: a rename
+   * touching two records out of two hundred costs two writes, not two hundred
+   * against a 120-per-minute budget.
+   */
+  async #rewriteTags(change: (recruiter: Recruiter) => Recruiter | null): Promise<number> {
+    const { recruiters } = await this.list();
+
+    let changed = 0;
+
+    for (const recruiter of recruiters) {
+      const updated = change(recruiter);
+      if (!updated) continue;
+
+      const result = await this.save(updated);
+      if (result.ok) changed += 1;
+    }
+
+    return changed;
   }
 
   #overflowKey(id: string): string {
