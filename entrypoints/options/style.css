@@ -1,0 +1,220 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --line: color-mix(in srgb, currentColor 12%, transparent);
+  --muted: color-mix(in srgb, currentColor 62%, transparent);
+  --accent: color-mix(in srgb, currentColor 6%, transparent);
+  --warn: color-mix(in srgb, currentColor 20%, transparent);
+}
+
+body {
+  margin: 0;
+}
+
+.options {
+  /* A settings page opens in a full tab, so it reads as a document rather than
+     stretching to whatever width the window happens to be. */
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.options h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.options h2 {
+  margin: 0 0 0.75rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  margin: 0 0 0.5rem;
+}
+
+.privacy p {
+  margin: 0 0 0.5rem;
+}
+
+.panel {
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.meter {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--accent);
+  overflow: hidden;
+}
+
+.meter__fill {
+  height: 100%;
+  background: color-mix(in srgb, currentColor 45%, transparent);
+  transition: width 150ms ease-out;
+}
+
+/* Only the states that need attention are tinted. Colouring the bar at every
+   level would make none of the levels mean anything. */
+.meter--warning .meter__fill,
+.meter--full .meter__fill {
+  background: color-mix(in srgb, currentColor 85%, transparent);
+}
+
+.meter__reading {
+  margin: 0.5rem 0 0.25rem;
+}
+
+.notice {
+  margin: 0.75rem 0 0;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.375rem;
+  background: var(--accent);
+  font-size: 0.8125rem;
+}
+
+.notice--warning,
+.notice--full,
+.notice--error {
+  background: var(--warn);
+  border: 1px solid var(--line);
+}
+
+.notice p {
+  margin: 0 0 0.375rem;
+}
+
+.notice p:last-child {
+  margin-bottom: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.625rem;
+  margin: 0.75rem 0;
+}
+
+.field {
+  margin-top: 0.75rem;
+}
+
+.field label {
+  display: block;
+  font-weight: 550;
+  margin-bottom: 0.375rem;
+}
+
+.preview {
+  margin-top: 0.875rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.375rem;
+}
+
+.preview p {
+  margin: 0 0 0.5rem;
+}
+
+.rejected {
+  margin: 0.5rem 0 0;
+  padding-left: 1.125rem;
+  font-size: 0.8125rem;
+}
+
+.tags {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tag {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.tag:first-child {
+  border-top: none;
+}
+
+.tag__name {
+  font-weight: 550;
+  min-width: 8rem;
+}
+
+.tag__edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.tag__edit p {
+  margin: 0;
+  flex: 1 1 18rem;
+}
+
+.tag__edit label {
+  font-weight: 550;
+}
+
+hr {
+  margin: 1.25rem 0;
+  border: none;
+  border-top: 1px solid var(--line);
+}
+
+button,
+input {
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+button {
+  cursor: pointer;
+  padding: 0.3125rem 0.75rem;
+  border-radius: 0.3125rem;
+  border: 1px solid var(--line);
+  background: var(--accent);
+  color: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  color: var(--muted);
+}
+
+button.secondary {
+  background: none;
+}
+
+/* The one irreversible action on the page carries the only outline that asks
+   you to look at it twice. */
+button.danger {
+  border-color: color-mix(in srgb, currentColor 40%, transparent);
+  font-weight: 550;
+}
+
+input[type='text'] {
+  padding: 0.3125rem 0.5rem;
+  border-radius: 0.3125rem;
+  border: 1px solid var(--line);
+  background: none;
+  color: inherit;
+}
