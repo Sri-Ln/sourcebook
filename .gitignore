@@ -37,6 +37,10 @@ docs/superpowers/plans/
 *.export.md
 exports/
 
+# Transient git worktrees created for parallel agent work. They contain a full
+# checkout, so leaving them untracked would offer the whole tree for commit.
+.claude/worktrees/
+
 # Editor and OS
 .DS_Store
 Thumbs.db
