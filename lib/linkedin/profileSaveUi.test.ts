@@ -116,56 +116,45 @@ describe('mountProfileSaveUi', () => {
   });
 
   describe('saving', () => {
-    it('opens a prefilled panel on click', async () => {
-      loadProfilePage();
-      await mountProfileSaveUi({ client: fakeClient() });
-
-      button().click();
-
-      const name = shadow().querySelector<HTMLInputElement>('[aria-label="Name"]')!;
-      expect(name.value).toBe('Jane Placeholder');
-    });
-
-    it('does not open a second panel on a repeated click', async () => {
-      loadProfilePage();
-      await mountProfileSaveUi({ client: fakeClient() });
-
-      button().click();
-      button().click();
-
-      expect(shadow().querySelectorAll('.panel')).toHaveLength(1);
-    });
-
-    it('saves a well-formed recruiter and flips the button', async () => {
+    it('saves on a single click, with no form in between', async () => {
       loadProfilePage();
       const client = fakeClient();
       await mountProfileSaveUi({ client });
 
       button().click();
-      shadow().querySelector('form')!.requestSubmit();
+
+      // One click is the whole interaction. A confirm step taxes the common
+      // case -- where extraction is simply right -- to serve the rare one.
+      await vi.waitFor(() => expect(client.save).toHaveBeenCalledTimes(1));
+      expect(shadow().querySelector('form')).toBeNull();
+    });
+
+    it('saves everything extraction found, including the company', async () => {
+      loadProfilePage();
+      const client = fakeClient();
+      await mountProfileSaveUi({ client });
+
+      button().click();
       await vi.waitFor(() => expect(client.save).toHaveBeenCalled());
 
       expect(client.save).toHaveBeenCalledWith(
         expect.objectContaining({
           name: 'Jane Placeholder',
           profileUrl: 'https://www.linkedin.com/in/jane-placeholder',
+          company: 'Postman',
+          headline: 'People Team, Operations & Recruiting',
           outreach: 'not-contacted',
           schemaVersion: SCHEMA_VERSION,
-          source: expect.objectContaining({ type: 'profile' }),
         }),
       );
-
-      await vi.waitFor(() => expect(button().textContent).toBe('Saved ✓'));
-      expect(shadow().querySelector('.panel')).toBeNull();
     });
 
-    it('carries the member id through so dedupe survives a URL change', async () => {
+    it('carries the member id so dedupe survives a URL change', async () => {
       loadProfilePage();
       const client = fakeClient();
       await mountProfileSaveUi({ client });
 
       button().click();
-      shadow().querySelector('form')!.requestSubmit();
       await vi.waitFor(() => expect(client.save).toHaveBeenCalled());
 
       expect(client.save).toHaveBeenCalledWith(
@@ -173,21 +162,46 @@ describe('mountProfileSaveUi', () => {
       );
     });
 
-    it('shows the failure and keeps the panel open when saving fails', async () => {
+    it('flips to saved once the write lands', async () => {
+      loadProfilePage();
+      await mountProfileSaveUi({ client: fakeClient() });
+
+      button().click();
+
+      await vi.waitFor(() => expect(button().textContent).toBe('Saved ✓'));
+      expect(button().disabled).toBe(true);
+    });
+
+    it('ignores a second click while the first is still saving', async () => {
+      loadProfilePage();
+      let release: () => void = () => {};
+      const client = fakeClient({
+        save: vi.fn().mockImplementation(
+          () => new Promise((resolve) => { release = () => resolve({ overflowed: false }); }),
+        ),
+      });
+      await mountProfileSaveUi({ client });
+
+      button().click();
+      button().click();
+
+      // Double-saving would create two records for one person.
+      expect(client.save).toHaveBeenCalledTimes(1);
+      release();
+    });
+
+    it('reports a failure on the button and stays clickable', async () => {
       loadProfilePage();
       const client = fakeClient({ save: vi.fn().mockRejectedValue(new Error('sync is full')) });
       await mountProfileSaveUi({ client });
 
       button().click();
-      shadow().querySelector('form')!.requestSubmit();
 
-      await vi.waitFor(() =>
-        expect(shadow().querySelector('.error')?.textContent).toContain('sync is full'),
-      );
-      // The button must not claim success, and the panel must not discard what
-      // the user typed.
-      expect(button().textContent).toBe('Save');
-      expect(shadow().querySelector('.panel')).not.toBeNull();
+      await vi.waitFor(() => expect(button().textContent).toBe('Save failed'));
+      // No panel to put a message in, and a toast on someone else's page is an
+      // intrusion -- so the button carries it, and the retry stays available.
+      expect(button().title).toContain('sync is full');
+      expect(button().disabled).toBe(false);
     });
   });
 });

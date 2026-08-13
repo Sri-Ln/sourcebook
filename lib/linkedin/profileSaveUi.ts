@@ -1,8 +1,7 @@
 import { extractProfile, type ProfileDraft } from '../extractors/profile.js';
 import type { RecruiterClient } from '../messaging/client.js';
-import { SCHEMA_VERSION } from '../models/types.js';
+import { draftToRecruiter } from '../recruiters/fromDraft.js';
 import { mountShadowHost } from '../ui/shadowMount.js';
-import { createSavePanel, type SavePanelValues } from '../ui/savePanel.js';
 import { waitForElement } from '../ui/waitForElement.js';
 
 /**
@@ -115,54 +114,32 @@ export async function mountProfileSaveUi({
   };
   render();
 
-  button.addEventListener('click', () => {
-    if (saved || root.querySelector('.panel')) return;
+  let busy = false;
 
-    const panel = createSavePanel({
-      draft,
-      onCancel: () => panel.remove(),
-      onSubmit: async (values) => {
-        try {
-          await client.save(toRecruiter(draft, values));
-          saved = true;
-          panel.remove();
-          render();
-        } catch (error) {
-          const message = panel.querySelector<HTMLElement>('.error');
-          if (message) {
-            message.textContent = error instanceof Error ? error.message : String(error);
-            message.hidden = false;
-          }
-        }
-      },
-    });
+  button.addEventListener('click', async () => {
+    if (saved || busy) return;
 
-    root.append(panel);
-    panel.querySelector('input')?.focus();
+    busy = true;
+    button.textContent = 'Saving…';
+    button.disabled = true;
+
+    try {
+      await client.save(draftToRecruiter(draft));
+      saved = true;
+    } catch (error) {
+      // Reported on the button itself. There is no panel to put a message in,
+      // and a page-level toast on someone else's site is an intrusion.
+      button.textContent = 'Save failed';
+      button.title = error instanceof Error ? error.message : String(error);
+      button.disabled = false;
+      busy = false;
+      return;
+    }
+
+    busy = false;
+    render();
   });
 
   return 'mounted';
 }
 
-function toRecruiter(draft: ProfileDraft, values: SavePanelValues) {
-  const now = new Date().toISOString();
-
-  return {
-    id: crypto.randomUUID(),
-    schemaVersion: SCHEMA_VERSION,
-    name: values.name,
-    profileUrl: draft.profileUrl ?? '',
-    ...(draft.memberId ? { memberId: draft.memberId } : {}),
-    ...(values.headline ? { headline: values.headline } : {}),
-    ...(values.company ? { company: values.company } : {}),
-    outreach: 'not-contacted' as const,
-    source: {
-      type: values.sourceType,
-      ...(values.sourceUrl ? { url: values.sourceUrl } : {}),
-    },
-    tags: values.tags,
-    ...(values.note ? { note: values.note } : {}),
-    savedAt: now,
-    updatedAt: now,
-  };
-}
