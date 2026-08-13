@@ -28,10 +28,12 @@ describe('extractProfile', () => {
       expect(headline).not.toMatch(/^·/);
     });
 
-    it('never guesses the company', () => {
-      // A wrong company is worse than a blank one: blanks get filled in,
-      // wrong values never get corrected. Extraction lands in #29.
-      expect(extractProfile(loadFixture(fixture)).company).toBeUndefined();
+    it('extracts a company', () => {
+      const { company } = extractProfile(loadFixture(fixture));
+
+      expect(company).toBeTruthy();
+      // The separator belongs to the "company · school" line, not the value.
+      expect(company).not.toContain('·');
     });
   });
 
@@ -46,6 +48,38 @@ describe('extractProfile', () => {
     expect(extractProfile(loadFixture('profile-recruiter-2')).headline).toBe(
       'Senior Talent Acquisition Partner at Fidelity Investments',
     );
+  });
+
+  describe('company', () => {
+    it('takes the employer from a company-and-school line', () => {
+      // "Postman · Ramapo College of New Jersey" — employer first, school after.
+      expect(extractProfile(loadFixture('profile-recruiter-1')).company).toBe('Postman');
+    });
+
+    it('reads a company line that has no school on it', () => {
+      expect(extractProfile(loadFixture('profile-recruiter-2')).company).toBe(
+        'Fidelity Investments',
+      );
+    });
+
+    it('does not read the company from a headline that happens to name one', () => {
+      // fixture-1's headline names no company at all, so a headline-parsing
+      // approach would return nothing here. The line below the headline does.
+      const draft = extractProfile(loadFixture('profile-recruiter-1'));
+      expect(draft.headline).not.toContain('Postman');
+      expect(draft.company).toBe('Postman');
+    });
+
+    it('warns when there is no company line to read', () => {
+      const doc = new DOMParser().parseFromString(
+        '<html><body><main><a href="/in/jane"><h2>Jane</h2></a><p>Only a headline</p></main></body></html>',
+        'text/html',
+      );
+      const draft = extractProfile(doc);
+
+      expect(draft.company).toBeUndefined();
+      expect(draft.warnings.join(' ')).toMatch(/company/i);
+    });
   });
 
   describe('when the page is not what we expect', () => {
