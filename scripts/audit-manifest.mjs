@@ -11,7 +11,7 @@
  *
  * Exits non-zero on a finding so it can run in CI.
  */
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 
 const ALLOWED_PERMISSIONS = new Set(['storage', 'activeTab']);
 const ALLOWED_HOSTS = new Set(['*://*.linkedin.com/*']);
@@ -116,6 +116,38 @@ function auditRepo() {
   );
 }
 
+/**
+ * The sources archive AMO requires is built from the working tree, not from
+ * what git tracks — so a gitignored file is still packaged. Raw LinkedIn
+ * captures living on a developer's disk would be uploaded to Mozilla and
+ * attached to public releases.
+ *
+ * Checked here rather than trusted to config, because this is the one leak
+ * whose blast radius is other people's data.
+ */
+function auditSourcesZip() {
+  const zips = readdirSync('.output').filter((f) => f.endsWith('-sources.zip'));
+  if (zips.length === 0) return; // Only produced by `npm run zip:ff`.
+
+  for (const name of zips) {
+    // Filenames sit in the zip's central directory as plain bytes; scanning the
+    // raw file avoids needing a zip library for a check this simple.
+    const contents = readFileSync(`.output/${name}`).toString('latin1');
+
+    check(
+      `sources: ${name} excludes raw captures`,
+      !contents.includes('fixtures/raw/'),
+      'raw LinkedIn captures are packaged in the sources archive',
+    );
+
+    check(
+      `sources: ${name} excludes .env files`,
+      !/(^|[/\\])\.env/.test(contents),
+      'an .env file is packaged in the sources archive',
+    );
+  }
+}
+
 const chromePath = '.output/chrome-mv3/manifest.json';
 const firefoxPath = '.output/firefox-mv2/manifest.json';
 
@@ -127,6 +159,7 @@ if (!existsSync(chromePath) || !existsSync(firefoxPath)) {
 auditChrome(JSON.parse(readFileSync(chromePath, 'utf8')));
 auditFirefox(JSON.parse(readFileSync(firefoxPath, 'utf8')));
 auditRepo();
+auditSourcesZip();
 
 for (const line of checked) console.log(line);
 
