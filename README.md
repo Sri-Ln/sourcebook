@@ -41,6 +41,8 @@ Chrome first. Edge, Firefox, and Safari are planned — WXT treats the browser t
 ## Documentation
 
 - [Design spec](docs/superpowers/specs/2026-08-10-sourcebook-extension-design.md) — architecture, data model, trade-offs, and what was deliberately deferred.
+- [Privacy policy](PRIVACY.md) — what is stored, where, and the one caveat about browser sync.
+- [Store listing](docs/store-listing.md) — submission copy and the pre-submission checklist.
 
 ## Contributing
 
