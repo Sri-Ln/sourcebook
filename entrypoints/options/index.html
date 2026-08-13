@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>sourcebook options</title>
+    <!-- Otherwise the page opens in the small embedded dialog inside
+         chrome://extensions, which is too narrow for a file picker, a dry-run
+         summary, and a tag list. Set here rather than in wxt.config.ts so the
+         whole entrypoint stays in one directory. -->
+    <meta name="manifest.open_in_tab" content="true" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

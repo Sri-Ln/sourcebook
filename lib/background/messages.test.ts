@@ -86,4 +86,66 @@ describe('handleMessage', () => {
     const result = await handleMessage(store, { type: 'storage:usage' });
     expect(result).toMatchObject({ ok: true, usage: { fraction: 0.8 } });
   });
+
+  describe('import', () => {
+    it('imports records and answers with a summary', async () => {
+      const result = await handleMessage(store, {
+        type: 'data:import',
+        recruiters: [jane],
+      });
+
+      expect(result).toMatchObject({ ok: true, summary: { imported: 1, skipped: 0 } });
+
+      const listed = await handleMessage(store, { type: 'recruiter:list' });
+      if (listed.ok && 'recruiters' in listed) expect(listed.recruiters).toHaveLength(1);
+    });
+
+    it('reports a rejected record in the summary rather than as a failure', async () => {
+      // The batch partly succeeded. `ok: false` would discard the count of what
+      // did get in, which is the number the user needs.
+      const result = await handleMessage(store, {
+        type: 'data:import',
+        recruiters: [jane, { id: 'bad' }],
+      });
+
+      expect(result).toMatchObject({ ok: true, summary: { imported: 1, skipped: 1 } });
+    });
+  });
+
+  describe('tag management', () => {
+    beforeEach(async () => {
+      await handleMessage(store, {
+        type: 'recruiter:save',
+        recruiter: { ...jane, tags: ['fintech'] },
+      });
+    });
+
+    it('renames a tag and reports how many records changed', async () => {
+      const result = await handleMessage(store, {
+        type: 'tag:rename',
+        from: 'fintech',
+        to: 'finance',
+      });
+
+      expect(result).toMatchObject({ ok: true, changed: 1 });
+
+      const got = await handleMessage(store, { type: 'recruiter:get', id: jane.id });
+      expect(got).toMatchObject({ recruiter: { tags: ['finance'] } });
+    });
+
+    it('turns a blank rename into a reported failure, not a thrown one', async () => {
+      const result = await handleMessage(store, { type: 'tag:rename', from: 'fintech', to: '' });
+
+      expect(result).toMatchObject({ ok: false });
+    });
+
+    it('deletes a tag and reports how many records changed', async () => {
+      const result = await handleMessage(store, { type: 'tag:remove', tag: 'fintech' });
+
+      expect(result).toMatchObject({ ok: true, changed: 1 });
+
+      const got = await handleMessage(store, { type: 'recruiter:get', id: jane.id });
+      expect(got).toMatchObject({ recruiter: { tags: [] } });
+    });
+  });
 });
