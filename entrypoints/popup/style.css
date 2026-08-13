@@ -144,3 +144,81 @@ button {
   font-size: 0.8125rem;
   cursor: pointer;
 }
+
+/* "Save current page" — the fallback surface. Kept visually quiet: it is
+   insurance against a LinkedIn redesign, not the primary way to save. */
+.save-current {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.save-current > button {
+  width: 100%;
+  padding: 0.375rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--accent);
+  color: inherit;
+}
+
+.save-current > button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.save-current .muted {
+  margin-top: 0.375rem;
+  font-size: 0.75rem;
+}
+
+/* The save panel is shared with the in-page button, which styles it inside a
+   shadow root. Here it needs the popup's own rules. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.panel .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+.panel input,
+.panel select,
+.panel textarea {
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.375rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+}
+
+.panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  justify-content: flex-end;
+}
+
+.panel .counter {
+  margin-right: auto;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+.panel .counter--full {
+  color: inherit;
+  font-weight: 600;
+}
+
+.panel .error {
+  margin: 0;
+  font-size: 0.6875rem;
+}
