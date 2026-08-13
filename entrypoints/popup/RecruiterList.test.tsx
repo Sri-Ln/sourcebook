@@ -50,7 +50,9 @@ describe('RecruiterList', () => {
 
     expect(await screen.findByText('Jane Placeholder')).toBeDefined();
     expect(screen.getByText(/Technical Recruiter at Placeholder Corp/)).toBeDefined();
-    expect(screen.getByText('Not contacted')).toBeDefined();
+    expect(screen.getByLabelText(/Outreach status for Jane Placeholder/)).toHaveValue(
+      'not-contacted',
+    );
     expect(screen.getByText('From their profile')).toBeDefined();
   });
 
