@@ -1,6 +1,7 @@
 import { browser } from 'wxt/browser';
 import type { Recruiter } from '../models/types.js';
 import type { StorageUsage } from '../storage/SyncProvider.js';
+import type { ImportSummary } from '../background/RecruiterStore.js';
 import type { Request, Response } from '../background/messages.js';
 
 export interface RecruiterListing {
@@ -22,6 +23,18 @@ export interface RecruiterClient {
   usage(): Promise<StorageUsage>;
 }
 
+/**
+ * The bulk operations, kept separate from {@link RecruiterClient} rather than
+ * bolted onto it. The popup needs none of them, and a surface that cannot
+ * rewrite every record at once is easier to reason about than one that can.
+ */
+export interface DataClient {
+  importRecruiters(recruiters: unknown[]): Promise<ImportSummary>;
+  /** Both return how many records changed. */
+  renameTag(from: string, to: string): Promise<number>;
+  removeTag(tag: string): Promise<number>;
+}
+
 async function send(request: Request): Promise<Response> {
   const response = (await browser.runtime.sendMessage(request)) as Response | undefined;
 
@@ -38,7 +51,7 @@ function unwrap<T extends Response>(response: Response): T {
   return response as T;
 }
 
-export const recruiterClient: RecruiterClient = {
+export const recruiterClient: RecruiterClient & DataClient = {
   async list() {
     const response = unwrap(await send({ type: 'recruiter:list' }));
     const { recruiters, overflowedIds } = response as Extract<
@@ -60,6 +73,21 @@ export const recruiterClient: RecruiterClient = {
   async usage() {
     const response = unwrap(await send({ type: 'storage:usage' }));
     return (response as Extract<Response, { usage: StorageUsage }>).usage;
+  },
+
+  async importRecruiters(recruiters) {
+    const response = unwrap(await send({ type: 'data:import', recruiters }));
+    return (response as Extract<Response, { summary: ImportSummary }>).summary;
+  },
+
+  async renameTag(from, to) {
+    const response = unwrap(await send({ type: 'tag:rename', from, to }));
+    return (response as Extract<Response, { changed: number }>).changed;
+  },
+
+  async removeTag(tag) {
+    const response = unwrap(await send({ type: 'tag:remove', tag }));
+    return (response as Extract<Response, { changed: number }>).changed;
   },
 };
 
