@@ -244,6 +244,56 @@ describe('ChromeLocalStore', () => {
     });
   });
 
+  describe('listUnexported', () => {
+    const EXPORTED = '2026-08-13T09:30:00.000Z';
+
+    it('returns only job descriptions that have never been exported', async () => {
+      await store.put(job({ id: 'fresh' }));
+      await store.put({ ...job({ id: 'sent' }), exportedAt: EXPORTED });
+
+      const { jobs } = await store.listUnexported();
+      expect(jobs.map((j) => j.id)).toEqual(['fresh']);
+    });
+
+    it('returns nothing when everything has been exported', async () => {
+      await store.put({ ...job({ id: 'sent' }), exportedAt: EXPORTED });
+
+      expect((await store.listUnexported()).jobs).toEqual([]);
+    });
+
+    it('drops a job description from the query once it is stamped', async () => {
+      await store.put(job({ id: 'fresh' }));
+      await store.markExported('fresh', EXPORTED);
+
+      expect((await store.listUnexported()).jobs).toEqual([]);
+    });
+
+    it('returns it again once the stamp is cleared', async () => {
+      await store.put({ ...job({ id: 'sent' }), exportedAt: EXPORTED });
+      await store.clearExported('sent');
+
+      expect((await store.listUnexported()).jobs.map((j) => j.id)).toEqual(['sent']);
+    });
+
+    it('still surfaces quarantined records, whose export state is unknowable', async () => {
+      // Filtering them out would hide them from the one view most likely to be
+      // looked at, and their exportedAt cannot be read to decide either way.
+      await store.put({ ...job({ id: 'sent' }), exportedAt: EXPORTED });
+      await browser.storage.local.set({ [jobDescriptionKey('bad')]: { id: 'bad', title: 42 } });
+
+      const { jobs, quarantined } = await store.listUnexported();
+
+      expect(jobs).toEqual([]);
+      expect(quarantined.map((record) => record.key)).toEqual([jobDescriptionKey('bad')]);
+    });
+
+    it('ignores keys belonging to other stores', async () => {
+      await browser.storage.local.set({ 'overflow:r:zzz': { id: 'zzz' } });
+
+      expect(await store.listUnexported()).toEqual({ jobs: [], quarantined: [] });
+    });
+  });
+
   describe('usage', () => {
     // fakeBrowser does not implement getBytesInUse, so it is stubbed here.
     // Counting bytes is Chrome's job; what this class contributes is the

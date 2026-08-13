@@ -58,6 +58,15 @@ export type StampResult =
  */
 export interface LocalStore {
   list(): Promise<JobListResult>;
+  /**
+   * Every job description with no `exportedAt`. This is what "export only what
+   * is new" is built on.
+   *
+   * Quarantined records come back unfiltered: their `exportedAt` cannot be
+   * read, so excluding them would be a guess, and it would hide them from the
+   * one view most likely to be looked at.
+   */
+  listUnexported(): Promise<JobListResult>;
   get(id: string): Promise<JobDescription | undefined>;
   /** Throws `QuotaExceededError` when the write would not fit. */
   put(job: JobDescription): Promise<void>;

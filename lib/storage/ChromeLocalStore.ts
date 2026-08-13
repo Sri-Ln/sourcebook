@@ -69,6 +69,15 @@ export class ChromeLocalStore implements LocalStore {
     return { jobs, quarantined };
   }
 
+  async listUnexported(): Promise<JobListResult> {
+    const { jobs, quarantined } = await this.list();
+
+    // Quarantined records pass through unfiltered. Their exportedAt is exactly
+    // what could not be read, so excluding them would be a guess dressed up as
+    // a query result.
+    return { jobs: jobs.filter((job) => job.exportedAt === undefined), quarantined };
+  }
+
   async get(id: string): Promise<JobDescription | undefined> {
     const key = jobDescriptionKey(id);
     const stored = await browser.storage.local.get(key);
