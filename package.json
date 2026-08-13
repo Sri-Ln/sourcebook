@@ -16,7 +16,8 @@
     "test:watch": "vitest",
     "postinstall": "wxt prepare",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "audit": "node scripts/audit-manifest.mjs"
   },
   "dependencies": {
     "react": "19.2.8",
