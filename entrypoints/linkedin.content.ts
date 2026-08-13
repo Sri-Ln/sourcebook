@@ -1,5 +1,8 @@
+import { browser } from 'wxt/browser';
+import { extractProfile } from '../lib/extractors/profile.js';
 import { HOST_ID, mountProfileSaveUi } from '../lib/linkedin/profileSaveUi.js';
 import { recruiterClient } from '../lib/messaging/client.js';
+import type { ExtractRequest } from '../lib/messaging/activeTab.js';
 import { unmountShadowHost } from '../lib/ui/shadowMount.js';
 import { watchUrlChanges } from '../lib/ui/watchUrlChanges.js';
 
@@ -29,5 +32,13 @@ export default defineContentScript({
 
     sync();
     watchUrlChanges(sync);
+
+    // The popup's "Save current page" fallback asks us to extract, because the
+    // DOM is here and not there. Sharing the extractor rather than duplicating
+    // it is what keeps the two surfaces from drifting apart.
+    browser.runtime.onMessage.addListener((message) => {
+      if ((message as ExtractRequest)?.type !== 'profile:extract') return;
+      return Promise.resolve(extractProfile(document));
+    });
   },
 });
