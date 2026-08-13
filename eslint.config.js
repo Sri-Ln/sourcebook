@@ -4,7 +4,7 @@ import tseslint from 'typescript-eslint';
 export default tseslint.config(
   {
     // Build output and generated types are not ours to lint.
-    ignores: ['.output/', '.wxt/', 'node_modules/', 'tests/fixtures/'],
+    ignores: ['.output/', '.wxt/', 'node_modules/', 'tests/fixtures/', '.claude/'],
   },
 
   js.configs.recommended,
