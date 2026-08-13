@@ -11,6 +11,14 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
 
   {
+    // Developer tooling runs in Node, not the browser.
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: { process: 'readonly', console: 'readonly' },
+    },
+  },
+
+  {
     languageOptions: {
       globals: {
         // WXT auto-imports these, so they are legitimately undeclared in source.
