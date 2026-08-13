@@ -7,7 +7,8 @@ export default defineConfig({
     // here than raw speed. jsdom is stricter than happy-dom about the kind of
     // deeply nested structure LinkedIn ships.
     environment: 'jsdom',
-    include: ['tests/**/*.test.ts', 'lib/**/*.test.ts'],
+    include: ['{tests,lib,entrypoints}/**/*.test.{ts,tsx}'],
+    setupFiles: ['tests/setup.ts'],
   },
   // Provides WXT auto-imports and a fake browser API, which the storage tests
   // in #7 will need.
