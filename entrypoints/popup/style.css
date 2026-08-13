@@ -222,3 +222,78 @@ button {
   margin: 0;
   font-size: 0.6875rem;
 }
+
+/* Filters */
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-bottom: 0.5rem;
+}
+
+.filters__search {
+  font: inherit;
+  font-size: 0.8125rem;
+  padding: 0.3125rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+}
+
+.filters__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.chip {
+  font-size: 0.6875rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+}
+
+/* Selected state carries weight and contrast rather than colour alone, so it
+   survives both themes and colour-blind vision. */
+.chip[aria-pressed='true'] {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  color: inherit;
+  font-weight: 600;
+}
+
+.filters__count {
+  margin-top: 0.5rem;
+  font-size: 0.6875rem;
+}
+
+.link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: inherit;
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* The status pill is now a control. It keeps the pill look until focused, so
+   the row does not read as a form. */
+select.status {
+  font: inherit;
+  font-size: 0.6875rem;
+  padding: 0.0625rem 0.375rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--accent);
+  color: inherit;
+  cursor: pointer;
+  appearance: none;
+}
+
+select.status:hover,
+select.status:focus-visible {
+  border-color: var(--line);
+}
