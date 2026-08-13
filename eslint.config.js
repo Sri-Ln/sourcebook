@@ -14,7 +14,7 @@ export default tseslint.config(
     // Developer tooling runs in Node, not the browser.
     files: ['scripts/**/*.mjs'],
     languageOptions: {
-      globals: { process: 'readonly', console: 'readonly' },
+      globals: { process: 'readonly', console: 'readonly', Buffer: 'readonly' },
     },
   },
 

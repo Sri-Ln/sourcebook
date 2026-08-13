@@ -52,6 +52,12 @@ jobs:
       - name: Build (Firefox)
         run: npm run build:ff
 
+      # Runs after both builds because it inspects the generated manifests.
+      # Permission creep is silent: a permission added for a half-finished
+      # feature stays, and noticing at store review costs a rejection.
+      - name: Audit manifests
+        run: npm run audit
+
       # Downloadable so a branch can be loaded in a real browser before it is
       # approved. Fixtures prove extraction; only a browser proves the button
       # mounts.
