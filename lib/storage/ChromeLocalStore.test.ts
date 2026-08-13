@@ -132,6 +132,118 @@ describe('ChromeLocalStore', () => {
     });
   });
 
+  describe('exportedAt', () => {
+    const EXPORTED = '2026-08-13T09:30:00.000Z';
+
+    it('stamps exportedAt on a stored job description', async () => {
+      const platform = job();
+      await store.put(platform);
+
+      const result = await store.markExported(platform.id, EXPORTED);
+
+      expect(result).toEqual({ ok: true, job: { ...platform, exportedAt: EXPORTED } });
+      expect((await store.get(platform.id))?.exportedAt).toBe(EXPORTED);
+    });
+
+    it('leaves every other field untouched', async () => {
+      // The caller stamping an export holds no opinion about the rest of the
+      // record. A blind overwrite here would clobber an edit made in another
+      // window between capture and export.
+      const platform = job({ location: 'Boston, MA', compensation: '$200k–$240k' });
+      await store.put(platform);
+
+      await store.markExported(platform.id, EXPORTED);
+
+      expect(await store.get(platform.id)).toEqual({ ...platform, exportedAt: EXPORTED });
+    });
+
+    it('clears exportedAt without disturbing anything else', async () => {
+      const platform = job({ location: 'Boston, MA' });
+      await store.put({ ...platform, exportedAt: EXPORTED });
+
+      const result = await store.clearExported(platform.id);
+
+      expect(result).toEqual({ ok: true, job: platform });
+      expect(await store.get(platform.id)).toEqual(platform);
+    });
+
+    it('removes the exportedAt key rather than storing undefined', async () => {
+      // `'exportedAt' in record` is how "not yet exported" is expressed. An
+      // explicit undefined survives structured cloning in some engines and
+      // would make an exported job look unexported to a key check.
+      await store.put({ ...job({ id: 'aaa' }), exportedAt: EXPORTED });
+      await store.clearExported('aaa');
+
+      const raw = await browser.storage.local.get(jobDescriptionKey('aaa'));
+      expect(raw[jobDescriptionKey('aaa')]).not.toHaveProperty('exportedAt');
+    });
+
+    it('re-stamps a job description that was already exported', async () => {
+      // Export is repeatable by design: a successful clipboard write does not
+      // prove a paste happened.
+      await store.put({ ...job({ id: 'aaa' }), exportedAt: '2026-08-01T00:00:00.000Z' });
+
+      await store.markExported('aaa', EXPORTED);
+
+      expect((await store.get('aaa'))?.exportedAt).toBe(EXPORTED);
+    });
+
+    it('treats clearing an unexported job description as a success', async () => {
+      const platform = job();
+      await store.put(platform);
+
+      await expect(store.clearExported(platform.id)).resolves.toEqual({
+        ok: true,
+        job: platform,
+      });
+    });
+
+    it('reports not-found rather than creating a record', async () => {
+      const result = await store.markExported('never-existed', EXPORTED);
+
+      expect(result).toEqual({ ok: false, reason: 'not-found', errors: expect.any(Array) });
+      expect(await browser.storage.local.get(null)).toEqual({});
+    });
+
+    it('refuses to stamp a record it cannot read, leaving it exactly as found', async () => {
+      // Stamping a malformed record would rewrite it through the parser and
+      // launder the corruption into something that looks fine.
+      const corrupt = { id: 'bad', title: 42 };
+      await browser.storage.local.set({ [jobDescriptionKey('bad')]: corrupt });
+
+      const result = await store.markExported('bad', EXPORTED);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.reason).toBe('unreadable');
+      expect((await browser.storage.local.get(null))[jobDescriptionKey('bad')]).toEqual(corrupt);
+    });
+
+    it('refuses to stamp a record written by a newer build', async () => {
+      // The decisive case. A newer record holds fields this version does not
+      // know about; round-tripping it through the parser would delete them.
+      const future = { ...job({ id: 'future' }), schemaVersion: 99, remote: true };
+      await browser.storage.local.set({ [jobDescriptionKey('future')]: future });
+
+      const result = await store.markExported('future', EXPORTED);
+
+      expect(result.ok).toBe(false);
+      expect((await browser.storage.local.get(null))[jobDescriptionKey('future')]).toEqual(future);
+    });
+
+    it('rejects a timestamp that is not ISO 8601 instead of writing it', async () => {
+      // Writing it would store a record that quarantines on the next read, and
+      // the export that caused it would be long forgotten by then.
+      const platform = job();
+      await store.put(platform);
+
+      const result = await store.markExported(platform.id, '13 August 2026');
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.reason).toBe('invalid-update');
+      expect(await store.get(platform.id)).toEqual(platform);
+    });
+  });
+
   describe('usage', () => {
     // fakeBrowser does not implement getBytesInUse, so it is stubbed here.
     // Counting bytes is Chrome's job; what this class contributes is the

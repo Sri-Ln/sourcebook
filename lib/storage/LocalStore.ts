@@ -30,6 +30,25 @@ export interface JobListResult {
 }
 
 /**
+ * Why a stamp can fail.
+ *
+ * - `not-found` — nothing is stored under that id. Reported rather than
+ *   silently creating a record, because a stamp is an edit, not a capture.
+ * - `unreadable` — the stored record failed validation. Stamping it would
+ *   rewrite it through the parser and launder corruption into something that
+ *   looks fine; worse, for a record from a newer build it would delete the
+ *   fields this version does not know about.
+ * - `invalid-update` — the stamp itself would produce an invalid record, e.g. a
+ *   timestamp that is not ISO 8601. Caught before the write, because otherwise
+ *   it resurfaces as a quarantined read long after the cause is forgotten.
+ */
+export type StampFailureReason = 'not-found' | 'unreadable' | 'invalid-update';
+
+export type StampResult =
+  | { ok: true; job: JobDescription }
+  | { ok: false; reason: StampFailureReason; errors: string[] };
+
+/**
  * The swap seam for job descriptions, mirroring `SyncProvider`.
  *
  * Separate from `SyncProvider` rather than a second implementation of it
@@ -43,5 +62,14 @@ export interface LocalStore {
   /** Throws `QuotaExceededError` when the write would not fit. */
   put(job: JobDescription): Promise<void>;
   remove(id: string): Promise<void>;
+  /**
+   * Sets `exportedAt` and nothing else, by reading the current record first.
+   * Taking a whole `JobDescription` instead would let an export — which holds
+   * no opinion about title, text, or anything else — clobber an edit made
+   * between capture and export.
+   */
+  markExported(id: string, exportedAt: string): Promise<StampResult>;
+  /** Removes `exportedAt` and nothing else, returning the JD to "not exported". */
+  clearExported(id: string): Promise<StampResult>;
   getUsage(): Promise<StorageUsage>;
 }

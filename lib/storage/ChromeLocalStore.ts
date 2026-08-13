@@ -7,6 +7,7 @@ import {
   jobDescriptionKey,
   type JobListResult,
   type LocalStore,
+  type StampResult,
 } from './LocalStore.js';
 import { QuotaExceededError, type StorageUsage } from './SyncProvider.js';
 
@@ -99,6 +100,56 @@ export class ChromeLocalStore implements LocalStore {
 
   async remove(id: string): Promise<void> {
     await browser.storage.local.remove(jobDescriptionKey(id));
+  }
+
+  async markExported(id: string, exportedAt: string): Promise<StampResult> {
+    return this.#restamp(id, (job) => ({ ...job, exportedAt }));
+  }
+
+  async clearExported(id: string): Promise<StampResult> {
+    // Destructured out rather than set to undefined. "Not yet exported" is
+    // expressed by the key's absence, and an explicit undefined would survive
+    // storage in some engines and read as exported to a key check.
+    return this.#restamp(id, ({ exportedAt: _cleared, ...rest }) => rest);
+  }
+
+  /**
+   * Read, validate, apply, validate again, write.
+   *
+   * The second validation is not belt-and-braces: it is what stops a bad
+   * timestamp from being written and only surfacing as a quarantined read
+   * weeks later, by which point the export that caused it is unrecoverable
+   * context.
+   */
+  async #restamp(
+    id: string,
+    update: (job: JobDescription) => JobDescription,
+  ): Promise<StampResult> {
+    const key = jobDescriptionKey(id);
+    const stored = await browser.storage.local.get(key);
+    const raw = stored[key];
+
+    if (raw === undefined) {
+      return {
+        ok: false,
+        reason: 'not-found',
+        errors: [`no job description is stored under id ${id}`],
+      };
+    }
+
+    const current = parseJobDescription(raw);
+
+    // Refused, not repaired. A record from a newer build carries fields this
+    // version cannot see, and writing back what the parser understood would
+    // delete them.
+    if (!current.ok) return { ok: false, reason: 'unreadable', errors: current.errors };
+
+    const candidate = parseJobDescription(update(current.value));
+    if (!candidate.ok) return { ok: false, reason: 'invalid-update', errors: candidate.errors };
+
+    await this.put(candidate.value);
+
+    return { ok: true, job: candidate.value };
   }
 
   async getUsage(): Promise<StorageUsage> {
