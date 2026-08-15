@@ -100,6 +100,35 @@ npm run build:ff   # Firefox
 
 Firefox is built from the start so cross-browser breakage surfaces continuously rather than all at once at Phase 5.
 
+## Releasing
+
+Releases are driven by tags, not by a bot.
+
+```bash
+# 1. Bump the version and update the changelog, on a branch, through a PR
+#    as usual. The tag must match package.json exactly.
+# 2. Once that PR is merged:
+git checkout main && git pull
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+Pushing the tag runs `.github/workflows/release.yml`, which re-runs lint,
+typecheck and tests, builds and packages both browsers, audits the manifests,
+and publishes a GitHub release with the two zips attached and notes generated
+from the merged pull requests.
+
+**Why tags rather than release-please.** A bot's pull request is created with
+`GITHUB_TOKEN`, and GitHub deliberately does not let that token trigger other
+workflows. With `verify` a required status check, the release PR would sit
+forever with no check to satisfy and no way to merge it. Fixing that needs a
+personal access token stored as a secret. Tags avoid the whole problem, and a
+release is rare enough that one command is not a burden.
+
+The release build is the one build nobody re-runs before it reaches a user,
+which is why the workflow repeats every check rather than trusting the run from
+the merge commit.
+
 ## Design decisions
 
 Before proposing an architectural change, read the [design spec](docs/superpowers/specs/2026-08-10-sourcebook-extension-design.md). Much of what looks like a missing feature was deferred on purpose, and the spec says why. If a decision in it changes, the spec changes in the same PR.
