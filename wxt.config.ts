@@ -3,6 +3,21 @@ import { defineConfig } from 'wxt';
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
 
+  zip: {
+    /**
+     * AMO requires a sources archive for minified extensions, and WXT builds it
+     * from the working tree — **not** from what git tracks. Raw LinkedIn
+     * captures are gitignored but still present on disk, so without this they
+     * are packaged into an archive that gets uploaded to Mozilla and attached
+     * to public releases: real names, photos and member ids for people who
+     * never agreed to any of it.
+     *
+     * `scripts/audit-manifest.mjs` fails the build if any survive, because a
+     * comment is not a safeguard.
+     */
+    excludeSources: ['tests/fixtures/raw/**', '**/*.env', '.claude/**'],
+  },
+
   manifest: ({ browser }) => ({
     name: 'sourcebook',
     description: 'Save LinkedIn recruiters and job descriptions from your browser.',
