@@ -1,6 +1,6 @@
 {
   "name": "sourcebook",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "Save LinkedIn recruiters and job descriptions from your browser.",
@@ -17,7 +17,8 @@
     "postinstall": "wxt prepare",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "audit": "node scripts/audit-manifest.mjs"
+    "audit": "node scripts/audit-manifest.mjs",
+    "zip:ff": "wxt zip -b firefox"
   },
   "dependencies": {
     "react": "19.2.8",
