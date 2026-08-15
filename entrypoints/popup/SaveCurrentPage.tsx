@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ProfileDraft } from '../../lib/extractors/profile.js';
 import type { RecruiterClient } from '../../lib/messaging/client.js';
-import { SCHEMA_VERSION } from '../../lib/models/types.js';
-import { createSavePanel, type SavePanelValues } from '../../lib/ui/savePanel.js';
+import { draftToRecruiter } from '../../lib/recruiters/fromDraft.js';
 
 export interface ActiveTabProbe {
   savable: boolean;
@@ -21,15 +20,16 @@ type State =
   | { status: 'probing' }
   | { status: 'unavailable'; reason: string }
   | { status: 'ready'; tabId: number }
-  | { status: 'editing'; draft: ProfileDraft }
+  | { status: 'saving'; tabId: number }
+  | { status: 'saved' }
   | { status: 'failed'; message: string; tabId: number };
 
 /**
- * The fallback that makes depending on an injected button safe.
+ * Saves whoever is in the current tab, in one click.
  *
- * If LinkedIn moves the anchor the in-page button never mounts — and without
- * this the feature is simply dead. With it, the failure costs one extra click.
- * This is also the only thing that justifies `activeTab` in the manifest.
+ * The fallback for when the in-page button cannot mount — a LinkedIn redesign
+ * moving the anchor would otherwise kill the feature outright. With this, it
+ * costs one extra click. It is also the only thing that justifies `activeTab`.
  */
 export function SaveCurrentPage({
   client,
@@ -38,75 +38,27 @@ export function SaveCurrentPage({
   onSaved,
 }: SaveCurrentPageProps) {
   const [state, setState] = useState<State>({ status: 'probing' });
-  const panelHost = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    void inspect().then((probe) => {
-      if (cancelled) return;
-      setState(
-        probe.savable && typeof probe.tabId === 'number'
-          ? { status: 'ready', tabId: probe.tabId }
-          : { status: 'unavailable', reason: probe.reason ?? 'Not available on this page.' },
-      );
-    });
-
-    return () => {
-      cancelled = true;
-    };
+  const probe = useCallback(async () => {
+    const result = await inspect();
+    setState(
+      result.savable && typeof result.tabId === 'number'
+        ? { status: 'ready', tabId: result.tabId }
+        : { status: 'unavailable', reason: result.reason ?? 'Not available on this page.' },
+    );
   }, [inspect]);
 
-  // The panel is plain DOM, shared with the in-page button. Reusing it beats a
-  // second React form that would drift out of step with the first.
   useEffect(() => {
-    if (state.status !== 'editing' || !panelHost.current) return;
+    void probe();
+  }, [probe]);
 
-    const host = panelHost.current;
-    const panel = createSavePanel({
-      draft: state.draft,
-      onCancel: () => setState({ status: 'probing' }),
-      onSubmit: async (values: SavePanelValues) => {
-        try {
-          await client.save(toRecruiter(state.draft, values));
-          onSaved();
-          setState({ status: 'probing' });
-        } catch (error) {
-          const message = panel.querySelector<HTMLElement>('.error');
-          if (message) {
-            message.textContent = error instanceof Error ? error.message : String(error);
-            message.hidden = false;
-          }
-        }
-      },
-    });
+  const save = async (tabId: number) => {
+    setState({ status: 'saving', tabId });
 
-    host.replaceChildren(panel);
-    return () => host.replaceChildren();
-  }, [state, client, onSaved]);
-
-  // Re-probe after cancel or save.
-  useEffect(() => {
-    if (state.status !== 'probing') return;
-    let cancelled = false;
-
-    void inspect().then((probe) => {
-      if (cancelled) return;
-      setState(
-        probe.savable && typeof probe.tabId === 'number'
-          ? { status: 'ready', tabId: probe.tabId }
-          : { status: 'unavailable', reason: probe.reason ?? 'Not available on this page.' },
-      );
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [state.status, inspect]);
-
-  const open = async (tabId: number) => {
     try {
-      setState({ status: 'editing', draft: await requestDraft(tabId) });
+      await client.save(draftToRecruiter(await requestDraft(tabId)));
+      setState({ status: 'saved' });
+      onSaved();
     } catch (error) {
       setState({
         status: 'failed',
@@ -116,23 +68,23 @@ export function SaveCurrentPage({
     }
   };
 
-  if (state.status === 'editing') {
-    return <div className="save-current" ref={panelHost} />;
-  }
-
-  const disabled = state.status !== 'ready' && state.status !== 'failed';
+  const tabId =
+    state.status === 'ready' || state.status === 'failed' ? state.tabId : undefined;
 
   return (
     <div className="save-current">
       <button
         type="button"
-        disabled={disabled}
-        onClick={() => {
-          if (state.status === 'ready') void open(state.tabId);
-          if (state.status === 'failed') void open(state.tabId);
-        }}
+        disabled={tabId === undefined || state.status === 'saved'}
+        onClick={() => tabId !== undefined && void save(tabId)}
       >
-        Save current page
+        {state.status === 'saving'
+          ? 'Saving…'
+          : state.status === 'saved'
+            ? 'Saved ✓'
+            : state.status === 'failed'
+              ? 'Try again'
+              : 'Save this profile'}
       </button>
 
       {state.status === 'unavailable' ? (
@@ -148,27 +100,4 @@ export function SaveCurrentPage({
       ) : null}
     </div>
   );
-}
-
-function toRecruiter(draft: ProfileDraft, values: SavePanelValues) {
-  const now = new Date().toISOString();
-
-  return {
-    id: crypto.randomUUID(),
-    schemaVersion: SCHEMA_VERSION,
-    name: values.name,
-    profileUrl: draft.profileUrl ?? '',
-    ...(draft.memberId ? { memberId: draft.memberId } : {}),
-    ...(values.headline ? { headline: values.headline } : {}),
-    ...(values.company ? { company: values.company } : {}),
-    outreach: 'not-contacted' as const,
-    source: {
-      type: values.sourceType,
-      ...(values.sourceUrl ? { url: values.sourceUrl } : {}),
-    },
-    tags: values.tags,
-    ...(values.note ? { note: values.note } : {}),
-    savedAt: now,
-    updatedAt: now,
-  };
 }

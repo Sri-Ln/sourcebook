@@ -39,7 +39,7 @@ function setup(over: Partial<Parameters<typeof SaveCurrentPage>[0]> = {}) {
   return { client, onSaved };
 }
 
-const button = () => screen.getByRole('button', { name: /Save current page/i });
+const button = () => screen.getByRole('button');
 
 describe('SaveCurrentPage', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -59,37 +59,48 @@ describe('SaveCurrentPage', () => {
     });
 
     // A disabled control with no explanation reads as a bug.
-    expect(await screen.findByText(/Open someone’s profile page/)).toBeDefined();
+    expect(await screen.findByText(/Open someone/)).toBeDefined();
     expect(button()).toBeDisabled();
   });
 
-  it('opens the shared panel prefilled from the tab', async () => {
-    setup();
-    await waitFor(() => expect(button()).not.toBeDisabled());
-
-    await userEvent.click(button());
-
-    const name = await screen.findByLabelText('Name');
-    expect((name as HTMLInputElement).value).toBe('Jane Placeholder');
-  });
-
-  it('saves what the panel submits and tells the list to refresh', async () => {
+  it('saves in a single click, with no form in between', async () => {
     const { client, onSaved } = setup();
     await waitFor(() => expect(button()).not.toBeDisabled());
-    await userEvent.click(button());
-    await screen.findByLabelText('Name');
 
-    await userEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await userEvent.click(button());
+
+    await waitFor(() => expect(client.save).toHaveBeenCalledTimes(1));
+    expect(screen.queryByLabelText('Name')).toBeNull();
+    expect(onSaved).toHaveBeenCalled();
+  });
+
+  it('saves everything extraction found, including the company', async () => {
+    const { client } = setup({
+      requestDraft: vi.fn().mockResolvedValue({ ...draft, company: 'Placeholder Corp' }),
+    });
+    await waitFor(() => expect(button()).not.toBeDisabled());
+
+    await userEvent.click(button());
 
     await waitFor(() => expect(client.save).toHaveBeenCalled());
     expect(client.save).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'Jane Placeholder',
+        company: 'Placeholder Corp',
         memberId: 'ACoAAEXAMPLE',
         outreach: 'not-contacted',
       }),
     );
-    expect(onSaved).toHaveBeenCalled();
+  });
+
+  it('confirms the save on the button', async () => {
+    setup();
+    await waitFor(() => expect(button()).not.toBeDisabled());
+
+    await userEvent.click(button());
+
+    await waitFor(() => expect(button()).toHaveTextContent('Saved'));
+    expect(button()).toBeDisabled();
   });
 
   it('reports an unreachable content script instead of failing silently', async () => {
@@ -108,15 +119,21 @@ describe('SaveCurrentPage', () => {
     expect(screen.getByText(/reloading the LinkedIn tab/i)).toBeDefined();
   });
 
-  it('closes the panel on cancel without saving', async () => {
-    const { client } = setup();
+  it('offers a retry after a failure', async () => {
+    const client = fakeClient({
+      save: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('sync is full'))
+        .mockResolvedValue({ overflowed: false }),
+    });
+    setup({ client });
     await waitFor(() => expect(button()).not.toBeDisabled());
+
     await userEvent.click(button());
-    await screen.findByLabelText('Name');
+    await waitFor(() => expect(button()).toHaveTextContent('Try again'));
 
-    await userEvent.click(screen.getByRole('button', { name: /Cancel/i }));
+    await userEvent.click(button());
 
-    await waitFor(() => expect(screen.queryByLabelText('Name')).toBeNull());
-    expect(client.save).not.toHaveBeenCalled();
+    await waitFor(() => expect(button()).toHaveTextContent('Saved'));
   });
 });

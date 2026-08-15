@@ -3,8 +3,7 @@ export interface ProfileDraft {
   profileUrl?: string;
   memberId?: string;
   headline?: string;
-  /** Always undefined in v1. Reliable extraction is #29. */
-  company?: undefined;
+  company?: string;
   /** Which strategies fell back or failed, so selector rot is visible. */
   warnings: string[];
 }
@@ -42,9 +41,9 @@ export function extractProfile(doc: Document): ProfileDraft {
   const name = readName(doc, nameNode, warnings);
   const profileUrl = readProfileUrl(nameNode, warnings);
   const memberId = readMemberId(main, warnings);
-  const headline = readHeadline(nameNode, warnings);
+  const { headline, company } = readHeadlineAndCompany(nameNode, warnings);
 
-  return { name, profileUrl, memberId, headline, company: undefined, warnings };
+  return { name, profileUrl, memberId, headline, company, warnings };
 }
 
 function readName(
@@ -102,10 +101,27 @@ function readMemberId(main: Element | null, warnings: string[]): string | undefi
   return id;
 }
 
-function readHeadline(nameNode: Element | null, warnings: string[]): string | undefined {
+/**
+ * The headline and the company sit in consecutive paragraphs of the top card:
+ *
+ *   People Team, Operations & Recruiting        <- headline
+ *   Postman · Ramapo College of New Jersey      <- current company, then school
+ *
+ * The company line is read as the first segment before the separator. LinkedIn
+ * puts the current employer first and education after it.
+ *
+ * **This is a heuristic and it can be wrong.** Someone with no current employer
+ * shows their school in that position, and nothing in the markup distinguishes
+ * the two. It is offered because a value you can correct from the list beats an
+ * empty field you have to fill in from memory — but it is a guess, not a fact.
+ */
+function readHeadlineAndCompany(
+  nameNode: Element | null,
+  warnings: string[],
+): { headline?: string; company?: string } {
   if (!nameNode) {
     warnings.push('headline: skipped because the name element was not found');
-    return undefined;
+    return {};
   }
 
   const scope = nameNode.closest('main') ?? nameNode.ownerDocument.body;
@@ -119,14 +135,26 @@ function readHeadline(nameNode: Element | null, warnings: string[]): string | un
       nameNode.compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING,
   );
 
+  const candidates: string[] = [];
+
   for (const paragraph of paragraphs) {
     const text = paragraph.textContent?.replace(/\s+/g, ' ').trim();
     if (!text) continue;
     if (DEGREE_MARKER.test(text) || PRONOUNS.test(text)) continue;
 
-    return text;
+    candidates.push(text);
+    if (candidates.length === 2) break;
   }
 
-  warnings.push('headline: no candidate paragraph found in the top card');
-  return undefined;
+  const [headline, companyLine] = candidates;
+
+  if (!headline) {
+    warnings.push('headline: no candidate paragraph found in the top card');
+    return {};
+  }
+
+  const company = companyLine?.split('·')[0]?.trim() || undefined;
+  if (!company) warnings.push('company: no company line found below the headline');
+
+  return { headline, ...(company ? { company } : {}) };
 }
