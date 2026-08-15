@@ -42,5 +42,6 @@ function sanitise(value: unknown): RecruiterFilter {
     query: typeof raw.query === 'string' ? raw.query : '',
     statuses,
     tags: Array.isArray(raw.tags) ? raw.tags.filter((t): t is string => typeof t === 'string') : [],
+    due: raw.due === true,
   };
 }

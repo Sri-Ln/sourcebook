@@ -131,6 +131,7 @@ describe('filterRecruiters', () => {
       query: 'ada',
       statuses: ['messaged'],
       tags: ['fintech'],
+      due: false,
     });
 
     expect(result).toHaveLength(1);
