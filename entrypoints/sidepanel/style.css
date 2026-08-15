@@ -1,0 +1,263 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --line: color-mix(in srgb, currentColor 12%, transparent);
+  --muted: color-mix(in srgb, currentColor 60%, transparent);
+  --accent: color-mix(in srgb, currentColor 6%, transparent);
+}
+
+body {
+  margin: 0;
+  /* The panel is resizable by the user; fill whatever they give us. */
+  font-size: 13px;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 0.875rem 1.5rem;
+  gap: 0.5rem;
+}
+
+/* Sticky because the panel stays open while you browse: the save button has to
+   remain reachable no matter how far down the list you have scrolled. */
+.panel__header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-bottom: 0.5rem;
+  margin: -0.75rem -0.875rem 0;
+  padding: 0.75rem 0.875rem 0.5rem;
+  background: Canvas;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel__header h1 {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+  color: var(--muted);
+}
+
+.muted {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.error p {
+  margin: 0 0 0.5rem;
+}
+
+/* Groups */
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.group__name {
+  display: flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  margin: 0 0 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.group__count {
+  font-weight: 400;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.card:first-child {
+  border-top: none;
+}
+
+.card__body {
+  min-width: 0; /* lets the role truncate instead of stretching the row */
+  flex: 1;
+}
+
+.card__name {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: inherit;
+  text-decoration: none;
+}
+
+.card__name:hover {
+  text-decoration: underline;
+}
+
+/* Truncated in CSS, not in JS, so the full value stays selectable and the title
+   attribute can show the rest. */
+.card__role {
+  margin: 0;
+  font-size: 0.6875rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+select.status {
+  font: inherit;
+  font-size: 0.625rem;
+  padding: 0.0625rem 0.25rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--accent);
+  color: inherit;
+  cursor: pointer;
+  appearance: none;
+  max-width: 6.5rem;
+}
+
+select.status:hover,
+select.status:focus-visible {
+  border-color: var(--line);
+}
+
+.status--replied,
+.status--referred {
+  background: color-mix(in srgb, currentColor 15%, transparent);
+  font-weight: 600;
+}
+
+.warning {
+  font-weight: 700;
+  color: inherit;
+  cursor: help;
+}
+
+/* Revealed on hover or focus. An always-visible delete on every row invites the
+   accident it enables. */
+.card__remove {
+  border: none;
+  background: none;
+  padding: 0 0.125rem;
+  font-size: 0.875rem;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.card:hover .card__remove,
+.card__remove:focus-visible {
+  opacity: 1;
+}
+
+/* Filters */
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.filters__search {
+  font: inherit;
+  padding: 0.3125rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+}
+
+.filters__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.chip {
+  font: inherit;
+  font-size: 0.625rem;
+  padding: 0.0625rem 0.4375rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+/* Weight and contrast rather than colour alone, so the state survives both
+   themes and colour-blind vision. */
+.chip[aria-pressed='true'] {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  color: inherit;
+  font-weight: 600;
+}
+
+.save-current > button {
+  width: 100%;
+  font: inherit;
+  padding: 0.375rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--accent);
+  color: inherit;
+  cursor: pointer;
+}
+
+.save-current > button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.save-current .muted {
+  margin-top: 0.25rem;
+  font-size: 0.6875rem;
+}
+
+.count {
+  font-size: 0.6875rem;
+}
+
+.link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}

@@ -22,10 +22,15 @@ export default defineConfig({
     name: 'sourcebook',
     description: 'Save LinkedIn recruiters and job descriptions from your browser.',
 
+    // Declared explicitly because there is no popup entrypoint any more. Without
+    // an `action` there is no toolbar icon at all, and setPanelBehavior's
+    // openPanelOnActionClick would have nothing to attach to.
+    action: { default_title: 'sourcebook' },
+
     // Deliberately minimal. `<all_urls>` is the single biggest driver of slow
-    // store review and user distrust, and this list is far cheaper to keep
-    // short now than to shrink later. `activeTab` exists for the popup's
-    // "Save current page" fallback when in-page injection fails.
+    // store review and user distrust, and this list is far cheaper to keep short
+    // now than to shrink later. `activeTab` exists so the side panel can save
+    // the profile in the current tab; `sidePanel` is added by WXT.
     permissions: ['storage', 'activeTab'],
     host_permissions: ['*://*.linkedin.com/*'],
 

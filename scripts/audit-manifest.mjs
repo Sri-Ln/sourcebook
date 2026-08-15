@@ -13,7 +13,7 @@
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 
-const ALLOWED_PERMISSIONS = new Set(['storage', 'activeTab']);
+const ALLOWED_PERMISSIONS = new Set(['storage', 'activeTab', 'sidePanel']);
 const ALLOWED_HOSTS = new Set(['*://*.linkedin.com/*']);
 const REQUIRED_ICONS = ['16', '32', '48', '128'];
 

@@ -14,4 +14,16 @@ export default defineBackground(() => {
   browser.runtime.onMessage.addListener((message) =>
     handleMessage(store, message as Request),
   );
+
+  // Clicking the toolbar icon opens the side panel instead of a popup. The list
+  // lives there because it stays open while you browse LinkedIn, which a popup
+  // cannot: a popup closes the moment focus leaves it.
+  //
+  // Chrome-only. Firefox opens its sidebar from the toolbar natively, and the
+  // API does not exist there, so this is guarded rather than assumed.
+  browser.sidePanel
+    ?.setPanelBehavior({ openPanelOnActionClick: true })
+    .catch(() => {
+      // Nothing actionable: the panel is still reachable from the extension menu.
+    });
 });
