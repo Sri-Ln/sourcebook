@@ -19,9 +19,17 @@ export function ReminderOptIn({ hasScheduled, check, request }: ReminderOptInPro
 
   useEffect(() => {
     let cancelled = false;
-    void check().then((result) => {
-      if (!cancelled) setGranted(result);
-    });
+
+    // A capability check that throws must not take the panel down with it. If
+    // we cannot tell whether notifications are available, staying quiet is the
+    // right answer: offering to enable something that may not exist is worse
+    // than not offering.
+    void check()
+      .catch(() => undefined)
+      .then((result) => {
+        if (!cancelled && typeof result === 'boolean') setGranted(result);
+      });
+
     return () => {
       cancelled = true;
     };

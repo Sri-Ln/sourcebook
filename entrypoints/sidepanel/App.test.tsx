@@ -23,6 +23,13 @@ vi.mock('../../lib/messaging/activeTab.js', () => ({
   requestDraft: vi.fn(),
 }));
 
+// fakeBrowser does not implement permissions.contains, and an unhandled
+// rejection from the effect fails the run even though every assertion passes.
+vi.mock('../../lib/messaging/notifications.js', () => ({
+  hasReminderPermission: vi.fn().mockResolvedValue(true),
+  requestReminderPermission: vi.fn().mockResolvedValue(true),
+}));
+
 vi.mock('../../lib/recruiters/filterStore.js', () => ({
   filterStore: {
     load: vi.fn().mockResolvedValue({ query: '', statuses: [], tags: [] }),
