@@ -114,6 +114,23 @@ const cappedNote: Check = (value) => {
   return null;
 };
 
+/**
+ * A calendar date, `YYYY-MM-DD`. Deliberately not a full timestamp: follow-ups
+ * are measured in days, and a stored time of day would imply precision the
+ * feature does not have and would drift across time zones.
+ */
+const calendarDate: Check = (value) => {
+  if (typeof value !== 'string') return 'must be a string';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return 'must be a YYYY-MM-DD date';
+
+  const parsed = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return 'must be a real date';
+  // Rejects 2026-02-31, which Date happily rolls forward into March.
+  if (parsed.toISOString().slice(0, 10) !== value) return 'must be a real date';
+
+  return null;
+};
+
 const RECRUITER_SHAPE: Shape = {
   required: {
     id: nonEmptyString,
@@ -130,6 +147,7 @@ const RECRUITER_SHAPE: Shape = {
     headline: anyString,
     company: anyString,
     note: cappedNote,
+    followUpAt: calendarDate,
   },
 };
 
