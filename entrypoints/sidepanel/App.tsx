@@ -11,8 +11,11 @@ import {
   type RecruiterFilter,
 } from '../../lib/recruiters/filter.js';
 import { filterStore } from '../../lib/recruiters/filterStore.js';
+import { isScheduled } from '../../lib/recruiters/followUp.js';
+import { hasReminderPermission, requestReminderPermission } from '../../lib/messaging/notifications.js';
 import { Filters } from './Filters.js';
 import { RecruiterGroups } from './RecruiterGroups.js';
+import { ReminderOptIn } from './ReminderOptIn.js';
 import { SaveCurrentPage } from './SaveCurrentPage.js';
 
 type LoadState =
@@ -133,6 +136,12 @@ export default function App() {
       {state.status === 'ready' && state.recruiters.length > 0 ? (
         <>
           <Filters filter={filter} tags={tags} onChange={changeFilter} />
+
+          <ReminderOptIn
+            hasScheduled={all.some(isScheduled)}
+            check={hasReminderPermission}
+            request={requestReminderPermission}
+          />
 
           {visible.length === 0 ? (
             <p className="muted">
