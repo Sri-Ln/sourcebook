@@ -1,6 +1,13 @@
 import { browser } from 'wxt/browser';
 import { RecruiterStore } from '../lib/background/RecruiterStore.js';
 import { handleMessage, type Request } from '../lib/background/messages.js';
+import {
+  NOTIFIED_KEY,
+  REMINDER_ALARM,
+  msUntilNextMidnight,
+  planReminder,
+} from '../lib/background/reminders.js';
+import { todayIso } from '../lib/recruiters/followUp.js';
 import { ChromeSyncProvider } from '../lib/storage/ChromeSyncProvider.js';
 
 export default defineBackground(() => {
@@ -21,6 +28,50 @@ export default defineBackground(() => {
   //
   // Chrome-only. Firefox opens its sidebar from the toolbar natively, and the
   // API does not exist there, so this is guarded rather than assumed.
+  /**
+   * Raises at most one notice per day for everyone whose follow-up has arrived.
+   *
+   * Silent unless the user has granted notifications, which is deliberate: the
+   * side panel's Due filter and per-card badges are the primary surface and
+   * need no permission at all. Notifications are the opt-in extra.
+   */
+  const raiseDueReminder = async () => {
+    const allowed = await browser.permissions.contains({ permissions: ['notifications'] });
+    if (!allowed) return;
+
+    const [{ recruiters }, stored] = await Promise.all([
+      store.list(),
+      browser.storage.local.get(NOTIFIED_KEY),
+    ]);
+
+    const notice = planReminder(recruiters, stored[NOTIFIED_KEY] as string | undefined);
+    if (!notice) return;
+
+    await browser.notifications.create({
+      type: 'basic',
+      iconUrl: 'icon/128.png',
+      title: notice.title,
+      message: notice.message,
+    });
+
+    await browser.storage.local.set({ [NOTIFIED_KEY]: todayIso() });
+  };
+
+  // Anchored to midnight rather than a fixed interval: a follow-up can only
+  // become due when the date changes.
+  browser.alarms.create(REMINDER_ALARM, {
+    when: Date.now() + msUntilNextMidnight(),
+    periodInMinutes: 24 * 60,
+  });
+
+  browser.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === REMINDER_ALARM) void raiseDueReminder();
+  });
+
+  // Dates pass while the browser is closed. Without this check on startup the
+  // reminder for those days would simply never happen.
+  void raiseDueReminder();
+
   browser.sidePanel
     ?.setPanelBehavior({ openPanelOnActionClick: true })
     .catch(() => {
