@@ -1,5 +1,4 @@
 import { NOTE_MAX_LENGTH, SOURCE_TYPES, type SourceType } from '../models/types.js';
-import type { ProfileDraft } from '../extractors/profile.js';
 
 export interface SavePanelValues {
   name: string;
@@ -11,8 +10,13 @@ export interface SavePanelValues {
   tags: string[];
 }
 
+/** Everything the form can be seeded with. All optional: a blank form is valid. */
+export type SavePanelInitial = Partial<SavePanelValues>;
+
 export interface SavePanelOptions {
-  draft: ProfileDraft;
+  initial?: SavePanelInitial;
+  /** Label on the confirm button. */
+  submitLabel?: string;
   onSubmit: (values: SavePanelValues) => void | Promise<void>;
   onCancel: () => void;
 }
@@ -34,31 +38,42 @@ function field(labelText: string, control: HTMLElement): HTMLLabelElement {
 }
 
 /**
- * The confirm-before-save form.
+ * The edit form.
+ *
+ * Saving itself is one click and needs no form. This exists for afterwards:
+ * adding the note you meant to write, fixing a company extraction guessed
+ * wrong, or recording that you found someone through a post rather than by
+ * browsing. Those are the corrections worth making against the whole
+ * collection rather than in the moment.
  *
  * Every field is editable, including ones extraction filled in. Extraction is
  * best-effort against markup that changes without warning, so the user must
  * always be able to correct it — and when extraction fails entirely the same
  * form is simply blank rather than broken.
  */
-export function createSavePanel({ draft, onSubmit, onCancel }: SavePanelOptions): HTMLFormElement {
+export function createSavePanel({
+  initial = {},
+  submitLabel = 'Save',
+  onSubmit,
+  onCancel,
+}: SavePanelOptions): HTMLFormElement {
   const form = document.createElement('form');
   form.className = 'panel';
 
   const name = document.createElement('input');
   name.type = 'text';
   name.required = true;
-  name.value = draft.name ?? '';
+  name.value = initial.name ?? '';
   name.setAttribute('aria-label', 'Name');
 
   const headline = document.createElement('input');
   headline.type = 'text';
-  headline.value = draft.headline ?? '';
+  headline.value = initial.headline ?? '';
   headline.setAttribute('aria-label', 'Headline');
 
   const company = document.createElement('input');
   company.type = 'text';
-  company.value = draft.company ?? '';
+  company.value = initial.company ?? '';
   company.setAttribute('aria-label', 'Company');
 
   const sourceType = document.createElement('select');
@@ -71,13 +86,14 @@ export function createSavePanel({ draft, onSubmit, onCancel }: SavePanelOptions)
   }
   // A profile page cannot report how you arrived, so this defaults to the only
   // thing we actually know and stays one click from the truth.
-  sourceType.value = 'profile';
+  sourceType.value = initial.sourceType ?? 'profile';
 
   const sourceUrl = document.createElement('input');
   sourceUrl.type = 'url';
   sourceUrl.placeholder = 'Link to the post (optional)';
   sourceUrl.setAttribute('aria-label', 'Source link');
-  sourceUrl.hidden = true;
+  sourceUrl.value = initial.sourceUrl ?? '';
+  sourceUrl.hidden = sourceType.value === 'profile' || sourceType.value === 'manual';
 
   // The URL only means something for a source that has one.
   sourceType.addEventListener('change', () => {
@@ -89,6 +105,7 @@ export function createSavePanel({ draft, onSubmit, onCancel }: SavePanelOptions)
   note.maxLength = NOTE_MAX_LENGTH;
   note.placeholder = 'Why they matter, what they were hiring for…';
   note.setAttribute('aria-label', 'Note');
+  note.value = initial.note ?? '';
 
   const counter = document.createElement('span');
   counter.className = 'counter';
@@ -106,6 +123,7 @@ export function createSavePanel({ draft, onSubmit, onCancel }: SavePanelOptions)
   tags.type = 'text';
   tags.placeholder = 'fintech, sponsors-h1b';
   tags.setAttribute('aria-label', 'Tags');
+  tags.value = (initial.tags ?? []).join(', ');
 
   const error = document.createElement('p');
   error.className = 'error';
@@ -114,7 +132,7 @@ export function createSavePanel({ draft, onSubmit, onCancel }: SavePanelOptions)
 
   const save = document.createElement('button');
   save.type = 'submit';
-  save.textContent = 'Save';
+  save.textContent = submitLabel;
 
   const cancel = document.createElement('button');
   cancel.type = 'button';

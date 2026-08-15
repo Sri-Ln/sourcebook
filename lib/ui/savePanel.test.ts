@@ -1,16 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NOTE_MAX_LENGTH } from '../models/types.js';
-import type { ProfileDraft } from '../extractors/profile.js';
 import { createSavePanel } from './savePanel.js';
 
-function draft(overrides: Partial<ProfileDraft> = {}): ProfileDraft {
+function seed(overrides: Record<string, unknown> = {}) {
   return {
     name: 'Jane Placeholder',
     headline: 'Technical Recruiter at Placeholder Corp',
-    profileUrl: 'https://www.linkedin.com/in/jane-placeholder',
-    memberId: 'ACoAAEXAMPLE',
-    company: undefined,
-    warnings: [],
     ...overrides,
   };
 }
@@ -18,7 +13,7 @@ function draft(overrides: Partial<ProfileDraft> = {}): ProfileDraft {
 function mount(options: Partial<Parameters<typeof createSavePanel>[0]> = {}) {
   const onSubmit = vi.fn();
   const onCancel = vi.fn();
-  const form = createSavePanel({ draft: draft(), onSubmit, onCancel, ...options });
+  const form = createSavePanel({ initial: seed(), onSubmit, onCancel, ...options });
   document.body.append(form);
   return { form, onSubmit, onCancel };
 }
@@ -31,7 +26,7 @@ describe('createSavePanel', () => {
     document.body.innerHTML = '';
   });
 
-  it('prefills what extraction found', () => {
+  it('prefills the values it is given', () => {
     const { form } = mount();
 
     expect(input(form, 'Name').value).toBe('Jane Placeholder');
@@ -39,9 +34,7 @@ describe('createSavePanel', () => {
   });
 
   it('is usable when extraction found nothing', () => {
-    const { form } = mount({
-      draft: { company: undefined, warnings: ['name: heading not found'] },
-    });
+    const { form } = mount({ initial: {} });
 
     // Extraction failing must degrade to a blank form, never to a broken one.
     expect(input(form, 'Name').value).toBe('');
@@ -152,6 +145,43 @@ describe('createSavePanel', () => {
           sourceUrl: 'https://www.linkedin.com/posts/abc',
         }),
       );
+    });
+  });
+
+  describe('editing an existing record', () => {
+    it('prefills the note, which is otherwise unwritable', () => {
+      const { form } = mount({ initial: seed({ note: 'Posted about backend openings' }) });
+
+      expect(form.querySelector('textarea')?.value).toBe('Posted about backend openings');
+    });
+
+    it('prefills tags as a comma-separated list', () => {
+      const { form } = mount({ initial: seed({ tags: ['fintech', 'remote'] }) });
+
+      expect(input(form, 'Tags').value).toBe('fintech, remote');
+    });
+
+    it('prefills the source and reveals its link when there is one', () => {
+      const { form } = mount({
+        initial: seed({ sourceType: 'post', sourceUrl: 'https://example.com/post' }),
+      });
+
+      expect(form.querySelector('select')?.value).toBe('post');
+      // Hidden by default, but a seeded post URL means it already applies.
+      expect(input(form, 'Source link').hidden).toBe(false);
+      expect(input(form, 'Source link').value).toBe('https://example.com/post');
+    });
+
+    it('counts a prefilled note straight away', () => {
+      const { form } = mount({ initial: seed({ note: 'abc' }) });
+
+      expect(form.querySelector('.counter')?.textContent).toBe(`3/${NOTE_MAX_LENGTH}`);
+    });
+
+    it('can relabel the confirm button', () => {
+      const { form } = mount({ submitLabel: 'Update' });
+
+      expect(form.querySelector('button[type="submit"]')?.textContent).toBe('Update');
     });
   });
 
