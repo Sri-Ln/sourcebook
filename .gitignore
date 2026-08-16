@@ -41,6 +41,10 @@ exports/
 # checkout, so leaving them untracked would offer the whole tree for commit.
 .claude/worktrees/
 
+# Browser-tooling scratch output. It lands in the repo root during UI work and
+# has been offered for commit twice now.
+.playwright-mcp/
+
 # Editor and OS
 .DS_Store
 Thumbs.db
