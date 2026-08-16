@@ -1,12 +1,16 @@
 import { OUTREACH_STATUSES, type OutreachStatus, type Recruiter } from '../../lib/models/types.js';
 import { groupByCompany } from '../../lib/recruiters/groupByCompany.js';
+import { EditPanel } from './EditPanel.js';
 import { OUTREACH_LABELS } from './Filters.js';
 
 export interface RecruiterGroupsProps {
   recruiters: Recruiter[];
   overflowedIds: string[];
+  editingId?: string | undefined;
   onStatusChange: (recruiter: Recruiter, outreach: OutreachStatus) => void;
   onRemove: (id: string) => void;
+  onEdit: (id: string | undefined) => void;
+  onSaveEdit: (updated: Recruiter) => Promise<void>;
 }
 
 /**
@@ -23,8 +27,11 @@ export interface RecruiterGroupsProps {
 export function RecruiterGroups({
   recruiters,
   overflowedIds,
+  editingId,
   onStatusChange,
   onRemove,
+  onEdit,
+  onSaveEdit,
 }: RecruiterGroupsProps) {
   const groups = groupByCompany(recruiters);
 
@@ -83,6 +90,16 @@ export function RecruiterGroups({
 
                   <button
                     type="button"
+                    className="card__edit-toggle"
+                    aria-label={`Edit ${recruiter.name}`}
+                    aria-expanded={editingId === recruiter.id}
+                    onClick={() => onEdit(editingId === recruiter.id ? undefined : recruiter.id)}
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    type="button"
                     className="card__remove"
                     aria-label={`Remove ${recruiter.name}`}
                     onClick={() => onRemove(recruiter.id)}
@@ -90,6 +107,14 @@ export function RecruiterGroups({
                     ×
                   </button>
                 </div>
+
+                {editingId === recruiter.id ? (
+                  <EditPanel
+                    recruiter={recruiter}
+                    onSave={onSaveEdit}
+                    onCancel={() => onEdit(undefined)}
+                  />
+                ) : null}
               </li>
             ))}
           </ul>

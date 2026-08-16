@@ -258,6 +258,115 @@ describe('side panel', () => {
       );
     });
 
+    it('opens an edit form from a card', async () => {
+      loaded([recruiter({ id: 'jane' })]);
+
+      render(<App />);
+      await screen.findByText('Jane Placeholder');
+
+      await userEvent.click(screen.getByRole('button', { name: /Edit Jane Placeholder/i }));
+
+      expect(await screen.findByLabelText('Note')).toBeDefined();
+    });
+
+    it('writes a note, which nothing else in the app can do', async () => {
+      loaded([recruiter({ id: 'jane' })]);
+
+      render(<App />);
+      await screen.findByText('Jane Placeholder');
+      await userEvent.click(screen.getByRole('button', { name: /Edit Jane Placeholder/i }));
+
+      await userEvent.type(await screen.findByLabelText('Note'), 'Posted about backend openings');
+      await userEvent.click(screen.getByRole('button', { name: /Update/i }));
+
+      await waitFor(() => expect(save).toHaveBeenCalled());
+      expect(save).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'jane', note: 'Posted about backend openings' }),
+      );
+    });
+
+    it('adds tags', async () => {
+      loaded([recruiter({ id: 'jane', tags: [] })]);
+
+      render(<App />);
+      await screen.findByText('Jane Placeholder');
+      await userEvent.click(screen.getByRole('button', { name: /Edit Jane Placeholder/i }));
+
+      await userEvent.type(await screen.findByLabelText('Tags'), 'fintech, remote');
+      await userEvent.click(screen.getByRole('button', { name: /Update/i }));
+
+      await waitFor(() => expect(save).toHaveBeenCalled());
+      expect(save).toHaveBeenCalledWith(
+        expect.objectContaining({ tags: ['fintech', 'remote'] }),
+      );
+    });
+
+    it('corrects a company the extractor guessed wrong', async () => {
+      loaded([recruiter({ id: 'jane', company: 'Ramapo College' })]);
+
+      render(<App />);
+      await screen.findByText('Jane Placeholder');
+      await userEvent.click(screen.getByRole('button', { name: /Edit Jane Placeholder/i }));
+
+      const company = await screen.findByLabelText('Company');
+      await userEvent.clear(company);
+      await userEvent.type(company, 'Postman');
+      await userEvent.click(screen.getByRole('button', { name: /Update/i }));
+
+      await waitFor(() => expect(save).toHaveBeenCalled());
+      expect(save).toHaveBeenCalledWith(expect.objectContaining({ company: 'Postman' }));
+    });
+
+    it('preserves identity when editing', async () => {
+      loaded([recruiter({ id: 'jane', memberId: 'ACoAAEXAMPLE' })]);
+
+      render(<App />);
+      await screen.findByText('Jane Placeholder');
+      await userEvent.click(screen.getByRole('button', { name: /Edit Jane Placeholder/i }));
+      await userEvent.type(await screen.findByLabelText('Note'), 'x');
+      await userEvent.click(screen.getByRole('button', { name: /Update/i }));
+
+      await waitFor(() => expect(save).toHaveBeenCalled());
+      // Changing these would orphan the record or defeat dedupe.
+      expect(save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'jane',
+          memberId: 'ACoAAEXAMPLE',
+          profileUrl: 'https://www.linkedin.com/in/jane-placeholder',
+          savedAt: '2026-08-12T10:00:00.000Z',
+        }),
+      );
+    });
+
+    it('closes the form on cancel without saving', async () => {
+      loaded([recruiter({ id: 'jane' })]);
+
+      render(<App />);
+      await screen.findByText('Jane Placeholder');
+      await userEvent.click(screen.getByRole('button', { name: /Edit Jane Placeholder/i }));
+      await screen.findByLabelText('Note');
+
+      await userEvent.click(screen.getByRole('button', { name: /Cancel/i }));
+
+      await waitFor(() => expect(screen.queryByLabelText('Note')).toBeNull());
+      expect(save).not.toHaveBeenCalled();
+    });
+
+    it('keeps the form open and shows why when saving fails', async () => {
+      loaded([recruiter({ id: 'jane' })]);
+      save.mockRejectedValue(new Error('sync is full'));
+
+      render(<App />);
+      await screen.findByText('Jane Placeholder');
+      await userEvent.click(screen.getByRole('button', { name: /Edit Jane Placeholder/i }));
+      await userEvent.type(await screen.findByLabelText('Note'), 'Worth keeping');
+      await userEvent.click(screen.getByRole('button', { name: /Update/i }));
+
+      // Losing a note someone just typed would be worse than the failure.
+      expect(await screen.findByText(/sync is full/)).toBeDefined();
+      expect(screen.getByLabelText('Note')).toHaveValue('Worth keeping');
+    });
+
     it('removes a recruiter', async () => {
       loaded([recruiter({ id: 'jane' })]);
 

@@ -23,6 +23,7 @@ type LoadState =
 export default function App() {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [filter, setFilter] = useState<RecruiterFilter>(EMPTY_FILTER);
+  const [editingId, setEditingId] = useState<string | undefined>(undefined);
 
   const load = useCallback(async () => {
     try {
@@ -78,8 +79,17 @@ export default function App() {
 
   const remove = async (id: string) => {
     await recruiterClient.remove(id);
+    if (editingId === id) setEditingId(undefined);
     await load();
   };
+
+  // Throws on failure rather than swallowing, so the form can show the reason
+  // and keep what was typed.
+  const saveEdit = useCallback(async (updated: Recruiter) => {
+    await recruiterClient.save(updated);
+    setEditingId(undefined);
+    await load();
+  }, [load]);
 
   const all = state.status === 'ready' ? state.recruiters : [];
   const tags = useMemo(() => collectTags(all), [all]);
@@ -135,8 +145,11 @@ export default function App() {
             <RecruiterGroups
               recruiters={visible}
               overflowedIds={state.overflowedIds}
+              editingId={editingId}
               onStatusChange={(recruiter, outreach) => void changeStatus(recruiter, outreach)}
               onRemove={(id) => void remove(id)}
+              onEdit={setEditingId}
+              onSaveEdit={saveEdit}
             />
           )}
 
