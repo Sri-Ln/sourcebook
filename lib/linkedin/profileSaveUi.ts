@@ -1,5 +1,6 @@
 import { extractProfile, type ProfileDraft } from '../extractors/profile.js';
 import type { RecruiterClient } from '../messaging/client.js';
+import type { Recruiter } from '../models/types.js';
 import { draftToRecruiter } from '../recruiters/fromDraft.js';
 import { mountShadowHost } from '../ui/shadowMount.js';
 import { waitForElement } from '../ui/waitForElement.js';
@@ -52,6 +53,16 @@ export function findActionAnchor(doc: Document): Element | null {
 }
 
 export const HOST_ID = 'save-recruiter';
+
+/**
+ * How long Undo stays available after a removal.
+ *
+ * Saving costs nothing to repeat: it is rebuilt from the page. Removing is not
+ * symmetrical — it destroys the note, tags, status and follow-up date added
+ * afterwards, none of which the page can reconstruct. Undo is what makes a
+ * one-click removal fair.
+ */
+export const UNDO_MS = 8000;
 
 /** Records which profile the mounted button belongs to, so staleness is visible. */
 export const MOUNTED_PATH_ATTRIBUTE = 'data-sourcebook-path';
@@ -154,42 +165,81 @@ export async function mountProfileSaveUi({
 
   // Matched on memberId first: vanity URLs are user-changeable, so two links to
   // the same person can differ while the id stays put.
-  let saved = false;
+  let saved: Recruiter | undefined;
   try {
     const { recruiters } = await client.list();
-    saved = recruiters.some(
+    saved = recruiters.find(
       (r) =>
-        (draft.memberId && r.memberId === draft.memberId) ||
+        (draft.memberId !== undefined && r.memberId === draft.memberId) ||
         (!!draft.profileUrl && normalise(r.profileUrl) === normalise(draft.profileUrl)),
     );
   } catch {
     // A failed lookup must not block saving. Worst case the user sees "Save"
-    // for someone already saved, and the store rejects or overwrites — far
-    // better than a button that refuses to appear.
+    // for someone already saved, and the store overwrites -- far better than a
+    // button that refuses to appear.
   }
 
+  let removed: Recruiter | undefined;
+  let undoTimer: ReturnType<typeof setTimeout> | undefined;
+  let busy = false;
+
   const render = () => {
-    button.textContent = saved ? 'Saved ✓' : 'Save';
-    button.disabled = saved;
+    button.disabled = false;
+
+    if (saved) {
+      button.textContent = 'Saved ✓';
+      button.title = 'Remove from sourcebook';
+    } else if (removed) {
+      button.textContent = 'Undo';
+      button.title = `Restore ${removed.name}`;
+    } else {
+      button.textContent = 'Save';
+      button.title = '';
+    }
   };
   render();
 
-  let busy = false;
+  const forgetUndo = () => {
+    if (undoTimer !== undefined) clearTimeout(undoTimer);
+    undoTimer = undefined;
+  };
 
   button.addEventListener('click', async () => {
-    if (saved || busy) return;
+    if (busy) return;
 
     busy = true;
-    button.textContent = 'Saving…';
     button.disabled = true;
+    const previous = button.textContent;
 
     try {
-      await client.save(draftToRecruiter(draft));
-      saved = true;
+      if (saved) {
+        button.textContent = 'Removing…';
+        await client.remove(saved.id);
+        // Kept in memory so Undo restores the record exactly -- same id, same
+        // note, same tags -- rather than a fresh one built from the page.
+        removed = saved;
+        saved = undefined;
+        forgetUndo();
+        undoTimer = setTimeout(() => {
+          removed = undefined;
+          render();
+        }, UNDO_MS);
+      } else if (removed) {
+        button.textContent = 'Restoring…';
+        await client.save(removed);
+        saved = removed;
+        removed = undefined;
+        forgetUndo();
+      } else {
+        button.textContent = 'Saving…';
+        const record = draftToRecruiter(draft);
+        await client.save(record);
+        saved = record;
+      }
     } catch (error) {
-      // Reported on the button itself. There is no panel to put a message in,
-      // and a page-level toast on someone else's site is an intrusion.
-      button.textContent = 'Save failed';
+      // Reported on the button itself. There is no panel to hold a message, and
+      // a toast on someone else's page is an intrusion.
+      button.textContent = previous === 'Saved ✓' ? 'Remove failed' : 'Save failed';
       button.title = error instanceof Error ? error.message : String(error);
       button.disabled = false;
       busy = false;

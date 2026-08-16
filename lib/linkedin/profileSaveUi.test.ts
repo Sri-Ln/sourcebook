@@ -6,6 +6,7 @@ import { SCHEMA_VERSION, type Recruiter } from '../models/types.js';
 import {
   HOST_ID,
   MOUNTED_PATH_ATTRIBUTE,
+  UNDO_MS,
   findActionAnchor,
   mountProfileSaveUi,
 } from './profileSaveUi.js';
@@ -171,7 +172,8 @@ describe('mountProfileSaveUi', () => {
       // Matched on id even though the vanity URL has since changed — which is
       // exactly why the id is the preferred key.
       expect(button().textContent).toBe('Saved ✓');
-      expect(button().disabled).toBe(true);
+      // Enabled, because clicking it is how you remove someone.
+      expect(button().disabled).toBe(false);
     });
 
     it('falls back to matching on the profile URL', async () => {
@@ -251,7 +253,7 @@ describe('mountProfileSaveUi', () => {
       button().click();
 
       await vi.waitFor(() => expect(button().textContent).toBe('Saved ✓'));
-      expect(button().disabled).toBe(true);
+      expect(button().disabled).toBe(false);
     });
 
     it('ignores a second click while the first is still saving', async () => {
@@ -270,6 +272,75 @@ describe('mountProfileSaveUi', () => {
       // Double-saving would create two records for one person.
       expect(client.save).toHaveBeenCalledTimes(1);
       release();
+    });
+
+    it('removes the person when the saved button is clicked', async () => {
+      loadProfilePage();
+      const client = fakeClient({
+        list: vi.fn().mockResolvedValue({ recruiters: [saved({ id: 'jane' })], overflowedIds: [] }),
+      });
+      await mountProfileSaveUi({ client });
+      await vi.waitFor(() => expect(button().textContent).toBe('Saved ✓'));
+
+      button().click();
+
+      await vi.waitFor(() => expect(client.remove).toHaveBeenCalledWith('jane'));
+      await vi.waitFor(() => expect(button().textContent).toBe('Undo'));
+    });
+
+    it('restores the exact record on undo, not a fresh one', async () => {
+      loadProfilePage();
+      const stored = saved({ id: 'jane', note: 'Posted about backend openings', tags: ['fintech'] });
+      const client = fakeClient({
+        list: vi.fn().mockResolvedValue({ recruiters: [stored], overflowedIds: [] }),
+      });
+      await mountProfileSaveUi({ client });
+      await vi.waitFor(() => expect(button().textContent).toBe('Saved ✓'));
+
+      button().click();
+      await vi.waitFor(() => expect(button().textContent).toBe('Undo'));
+      button().click();
+
+      // Rebuilding from the page would silently drop the note and tags, which
+      // is exactly what makes removal asymmetrical with saving.
+      await vi.waitFor(() => expect(client.save).toHaveBeenCalledWith(stored));
+      await vi.waitFor(() => expect(button().textContent).toBe('Saved ✓'));
+    });
+
+    it('stops offering undo once the window passes', async () => {
+      vi.useFakeTimers();
+      try {
+        loadProfilePage();
+        const client = fakeClient({
+          list: vi.fn().mockResolvedValue({ recruiters: [saved({ id: 'jane' })], overflowedIds: [] }),
+        });
+        await mountProfileSaveUi({ client });
+        await vi.waitFor(() => expect(button().textContent).toBe('Saved ✓'));
+
+        button().click();
+        await vi.waitFor(() => expect(button().textContent).toBe('Undo'));
+
+        await vi.advanceTimersByTimeAsync(UNDO_MS + 100);
+
+        expect(button().textContent).toBe('Save');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('reports a failed removal without pretending it worked', async () => {
+      loadProfilePage();
+      const client = fakeClient({
+        list: vi.fn().mockResolvedValue({ recruiters: [saved({ id: 'jane' })], overflowedIds: [] }),
+        remove: vi.fn().mockRejectedValue(new Error('worker down')),
+      });
+      await mountProfileSaveUi({ client });
+      await vi.waitFor(() => expect(button().textContent).toBe('Saved ✓'));
+
+      button().click();
+
+      await vi.waitFor(() => expect(button().textContent).toBe('Remove failed'));
+      expect(button().title).toContain('worker down');
     });
 
     it('reports a failure on the button and stays clickable', async () => {
