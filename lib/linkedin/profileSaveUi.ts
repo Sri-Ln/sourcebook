@@ -11,6 +11,46 @@ import { waitForElement } from '../ui/waitForElement.js';
  */
 export const ANCHOR_SELECTOR = 'a[href*="/messaging/compose"]';
 
+/**
+ * Picks which Message link to sit beside.
+ *
+ * A profile carries **five** of them. Taking the first in document order put the
+ * button somewhere real but unhelpful — most likely LinkedIn's sticky header,
+ * which is off-screen until you scroll. The button mounted, reported the right
+ * profile and threw nothing, which is exactly why this took so long to see.
+ *
+ * Two rules, in order:
+ *
+ * 1. Prefer one that is actually rendered. A zero-height rect means a collapsed
+ *    or hidden container, and a button there is invisible by construction.
+ * 2. Among those, take the one nearest the person's name in document order.
+ *    The top card's action row follows the name; the sticky header's copy does
+ *    not.
+ */
+export function findActionAnchor(doc: Document): Element | null {
+  const candidates = [...doc.querySelectorAll(ANCHOR_SELECTOR)];
+  if (candidates.length === 0) return null;
+
+  const rendered = candidates.filter((el) => {
+    const box = el.getBoundingClientRect();
+    return box.width > 0 && box.height > 0;
+  });
+
+  // jsdom reports every rect as zero, and a real page mid-render can too.
+  // Falling back to all candidates beats returning nothing.
+  const usable = rendered.length > 0 ? rendered : candidates;
+
+  const nameNode =
+    [...doc.querySelectorAll('h2')].find((h) => h.closest('a[href*="/in/"]')) ?? null;
+  if (!nameNode) return usable[0] ?? null;
+
+  const after = usable.filter(
+    (el) => nameNode.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+
+  return after[0] ?? usable[0] ?? null;
+}
+
 export const HOST_ID = 'save-recruiter';
 
 /** Records which profile the mounted button belongs to, so staleness is visible. */
@@ -32,10 +72,18 @@ export interface MountOptions {
 }
 
 const STYLES = `
-  :host { all: initial; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
-  .save { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 999px;
-          border: 1px solid currentColor; background: transparent; cursor: pointer; }
-  .save[disabled] { cursor: default; opacity: .75; }
+  /* display is set explicitly: all:initial resets it, and relying on the
+     parent's layout to give an inline box sensible metrics is a gamble. */
+  :host { all: initial; display: inline-flex; align-items: center; vertical-align: middle;
+          font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  /* Sized and weighted to sit among LinkedIn's own pill buttons rather than
+     look like a stray link. A transparent 13px outline was easy to miss
+     entirely, which is half of why this bug went unseen. */
+  .save { font: inherit; font-size: 14px; font-weight: 600; line-height: 1;
+          padding: 8px 16px; border-radius: 999px; border: 1px solid #1c273c;
+          background: #1c273c; color: #fff; cursor: pointer; white-space: nowrap; }
+  .save:hover { background: #2b3a56; border-color: #2b3a56; }
+  .save[disabled] { cursor: default; background: transparent; color: #1c273c; opacity: .8; }
   .panel { position: absolute; z-index: 9999; margin-top: 6px; width: 280px; padding: 12px;
            border: 1px solid rgba(0,0,0,.15); border-radius: 8px; background: Canvas;
            color: CanvasText; box-shadow: 0 8px 24px rgba(0,0,0,.18);
@@ -75,12 +123,16 @@ export async function mountProfileSaveUi({
   extract = extractProfile,
   signal,
 }: MountOptions): Promise<MountOutcome> {
-  const anchor = await waitForElement(ANCHOR_SELECTOR, {
+  // Waits for any Message link to exist, then chooses between them. Waiting on
+  // the selector alone would settle for whichever appeared first.
+  const appeared = await waitForElement(ANCHOR_SELECTOR, {
     root: doc,
     ...(timeoutMs ? { timeoutMs } : {}),
     ...(signal ? { signal } : {}),
   });
-  if (!anchor || signal?.aborted) return 'no-anchor';
+  if (!appeared || signal?.aborted) return 'no-anchor';
+
+  const anchor = findActionAnchor(doc) ?? appeared;
 
   const draft = extract(doc);
   const root = mountShadowHost({
