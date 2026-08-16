@@ -8,6 +8,8 @@ export interface SavePanelValues {
   sourceUrl: string;
   note: string;
   tags: string[];
+  /** `YYYY-MM-DD`, or empty for no reminder. */
+  followUpAt: string;
 }
 
 /** Everything the form can be seeded with. All optional: a blank form is valid. */
@@ -125,6 +127,31 @@ export function createSavePanel({
   tags.setAttribute('aria-label', 'Tags');
   tags.value = (initial.tags ?? []).join(', ');
 
+  const followUp = document.createElement('input');
+  followUp.type = 'date';
+  followUp.setAttribute('aria-label', 'Follow up on');
+  followUp.value = initial.followUpAt ?? '';
+
+  const clearFollowUp = document.createElement('button');
+  clearFollowUp.type = 'button';
+  clearFollowUp.className = 'link';
+  clearFollowUp.textContent = 'Clear';
+  clearFollowUp.hidden = !followUp.value;
+  clearFollowUp.setAttribute('aria-label', 'Clear follow-up date');
+  clearFollowUp.addEventListener('click', () => {
+    // A date input offers no obvious way back to empty once set, and being
+    // unable to cancel a reminder would make people avoid setting one.
+    followUp.value = '';
+    clearFollowUp.hidden = true;
+  });
+  followUp.addEventListener('change', () => {
+    clearFollowUp.hidden = !followUp.value;
+  });
+
+  const followUpRow = document.createElement('div');
+  followUpRow.className = 'field__row';
+  followUpRow.append(followUp, clearFollowUp);
+
   const error = document.createElement('p');
   error.className = 'error';
   error.hidden = true;
@@ -151,6 +178,7 @@ export function createSavePanel({
     sourceUrl,
     field('Note', note),
     field('Tags', tags),
+    field('Follow up on', followUpRow),
     error,
     actions,
   );
@@ -178,6 +206,7 @@ export function createSavePanel({
         .split(',')
         .map((tag) => tag.trim())
         .filter(Boolean),
+      followUpAt: followUp.value,
     });
   });
 

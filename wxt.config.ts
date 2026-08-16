@@ -31,7 +31,12 @@ export default defineConfig({
     // store review and user distrust, and this list is far cheaper to keep short
     // now than to shrink later. `activeTab` exists so the side panel can save
     // the profile in the current tab; `sidePanel` is added by WXT.
-    permissions: ['storage', 'activeTab'],
+    permissions: ['storage', 'activeTab', 'alarms'],
+
+    // Requested on first use, not at install. A permission prompt during
+    // install for a feature nobody has tried yet is how installs get abandoned
+    // — and the Due filter and card badges work without it.
+    optional_permissions: ['notifications'],
     host_permissions: ['*://*.linkedin.com/*'],
 
     // Firefox-only, so Chrome's manifest stays free of keys it ignores.

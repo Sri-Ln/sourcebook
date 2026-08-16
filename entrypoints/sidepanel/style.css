@@ -352,3 +352,32 @@ button {
   margin: 0;
   font-size: 0.6875rem;
 }
+
+/* Follow-up */
+.card__due {
+  margin: 0.125rem 0 0;
+  font-size: 0.625rem;
+  color: var(--muted);
+}
+
+/* Only what is actually due gets weight. Emphasising every scheduled date
+   would make the overdue ones invisible among them. */
+.card__due--now {
+  color: inherit;
+  font-weight: 650;
+}
+
+.chip--due[aria-pressed='true'] {
+  background: color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.field__row {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.field__row input[type='date'] {
+  flex: 1;
+  min-width: 0;
+}

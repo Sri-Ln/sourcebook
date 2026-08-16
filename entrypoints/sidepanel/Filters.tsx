@@ -41,6 +41,19 @@ export function Filters({ filter, tags, onChange }: FiltersProps) {
         onChange={(event) => onChange({ ...filter, query: event.target.value })}
       />
 
+      <div className="filters__chips">
+        {/* Given its own row and first position: "who should I chase today" is
+            the question this list exists to answer. */}
+        <button
+          type="button"
+          className="chip chip--due"
+          aria-pressed={filter.due}
+          onClick={() => onChange({ ...filter, due: !filter.due })}
+        >
+          Due
+        </button>
+      </div>
+
       <div className="filters__chips" role="group" aria-label="Filter by outreach status">
         {OUTREACH_STATUSES.map((status) => (
           <button

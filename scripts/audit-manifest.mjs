@@ -13,7 +13,8 @@
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 
-const ALLOWED_PERMISSIONS = new Set(['storage', 'activeTab', 'sidePanel']);
+const ALLOWED_PERMISSIONS = new Set(['storage', 'activeTab', 'sidePanel', 'alarms']);
+const ALLOWED_OPTIONAL_PERMISSIONS = new Set(['notifications']);
 const ALLOWED_HOSTS = new Set(['*://*.linkedin.com/*']);
 const REQUIRED_ICONS = ['16', '32', '48', '128'];
 
@@ -65,6 +66,13 @@ function auditChrome(manifest) {
     'description implies affiliation',
   );
 
+  const optional = manifest.optional_permissions ?? [];
+  check(
+    'chrome: no unexpected optional permissions',
+    optional.every((p) => ALLOWED_OPTIONAL_PERMISSIONS.has(p)),
+    `unexpected ${JSON.stringify(optional)}`,
+  );
+
   check('chrome: manifest v3', manifest.manifest_version === 3, `v${manifest.manifest_version}`);
 
   // Remote code is an automatic rejection, and easy to introduce accidentally
@@ -95,7 +103,11 @@ function auditRepo() {
 
   // The policy and the manifest must agree; a mismatch between the two is a
   // common rejection reason and an easy one to drift into.
-  for (const permission of [...ALLOWED_PERMISSIONS, ...ALLOWED_HOSTS]) {
+  for (const permission of [
+    ...ALLOWED_PERMISSIONS,
+    ...ALLOWED_OPTIONAL_PERMISSIONS,
+    ...ALLOWED_HOSTS,
+  ]) {
     check(
       `repo: privacy policy explains "${permission}"`,
       privacy.includes(permission),

@@ -1,4 +1,5 @@
 import type { OutreachStatus, Recruiter } from '../models/types.js';
+import { isDue } from './followUp.js';
 
 export interface RecruiterFilter {
   query: string;
@@ -6,9 +7,11 @@ export interface RecruiterFilter {
   statuses: OutreachStatus[];
   /** Empty means every tag. */
   tags: string[];
+  /** Only those whose follow-up date has arrived. */
+  due: boolean;
 }
 
-export const EMPTY_FILTER: RecruiterFilter = { query: '', statuses: [], tags: [] };
+export const EMPTY_FILTER: RecruiterFilter = { query: '', statuses: [], tags: [], due: false };
 
 /**
  * Fields worth searching. Notes are included deliberately: "posted about
@@ -37,13 +40,15 @@ function haystack(recruiter: Recruiter): string {
  */
 export function filterRecruiters(
   recruiters: Recruiter[],
-  { query, statuses, tags }: RecruiterFilter,
+  { query, statuses, tags, due }: RecruiterFilter,
+  now = new Date(),
 ): Recruiter[] {
   // Every term must match, in any field. Typing more words should narrow the
   // list rather than widen it, which is what a naive OR would do.
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
 
   return recruiters.filter((recruiter) => {
+    if (due && !isDue(recruiter, now)) return false;
     if (statuses.length && !statuses.includes(recruiter.outreach)) return false;
     if (tags.length && !tags.some((tag) => recruiter.tags.includes(tag))) return false;
 
@@ -59,6 +64,6 @@ export function collectTags(recruiters: Recruiter[]): string[] {
   return [...new Set(recruiters.flatMap((recruiter) => recruiter.tags))].sort();
 }
 
-export function isFiltering({ query, statuses, tags }: RecruiterFilter): boolean {
-  return Boolean(query.trim()) || statuses.length > 0 || tags.length > 0;
+export function isFiltering({ query, statuses, tags, due }: RecruiterFilter): boolean {
+  return Boolean(query.trim()) || statuses.length > 0 || tags.length > 0 || due;
 }

@@ -31,6 +31,7 @@ function values(overrides: Partial<SavePanelValues> = {}): SavePanelValues {
     sourceUrl: '',
     note: 'Original note',
     tags: ['fintech'],
+    followUpAt: '',
     ...overrides,
   };
 }
@@ -155,6 +156,29 @@ describe('applyEdits', () => {
       const updated = applyEdits(recruiter({ memberId: undefined }), values());
 
       expect('memberId' in updated).toBe(false);
+    });
+  });
+
+  describe('follow-up date', () => {
+    it('sets a reminder date', () => {
+      const updated = applyEdits(recruiter(), values({ followUpAt: '2026-09-15' }));
+
+      expect(updated.followUpAt).toBe('2026-09-15');
+    });
+
+    it('omits the field when no date is set', () => {
+      const updated = applyEdits(recruiter(), values({ followUpAt: '' }));
+
+      expect('followUpAt' in updated).toBe(false);
+    });
+
+    it('clears an existing reminder', () => {
+      const scheduled = recruiter({ followUpAt: '2026-09-15' });
+
+      const updated = applyEdits(scheduled, values({ followUpAt: '' }));
+
+      // Being unable to cancel a reminder would make people avoid setting one.
+      expect('followUpAt' in updated).toBe(false);
     });
   });
 

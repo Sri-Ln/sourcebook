@@ -185,10 +185,48 @@ describe('createSavePanel', () => {
     });
   });
 
+  describe('follow-up date', () => {
+    it('submits the chosen date', () => {
+      const { form, onSubmit } = mount();
+
+      input(form, 'Follow up on').value = '2026-09-15';
+      form.requestSubmit();
+
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ followUpAt: '2026-09-15' }),
+      );
+    });
+
+    it('prefills an existing date and offers a way to clear it', () => {
+      const { form } = mount({ initial: seed({ followUpAt: '2026-09-15' }) });
+
+      expect(input(form, 'Follow up on').value).toBe('2026-09-15');
+      expect(input(form, 'Clear follow-up date').hidden).toBe(false);
+    });
+
+    it('hides the clear control when there is no date', () => {
+      const { form } = mount();
+
+      expect(input(form, 'Clear follow-up date').hidden).toBe(true);
+    });
+
+    it('clears the date', () => {
+      const { form, onSubmit } = mount({ initial: seed({ followUpAt: '2026-09-15' }) });
+
+      // A date input offers no obvious route back to empty once set.
+      form.querySelector<HTMLButtonElement>('[aria-label="Clear follow-up date"]')!.click();
+      form.requestSubmit();
+
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ followUpAt: '' }));
+    });
+  });
+
   it('cancels without submitting', () => {
     const { form, onSubmit, onCancel } = mount();
 
-    form.querySelector<HTMLButtonElement>('button[type="button"]')!.click();
+    [...form.querySelectorAll<HTMLButtonElement>('button')]
+      .find((b) => b.textContent === 'Cancel')!
+      .click();
 
     expect(onCancel).toHaveBeenCalled();
     expect(onSubmit).not.toHaveBeenCalled();

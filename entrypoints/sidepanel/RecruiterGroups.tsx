@@ -1,4 +1,5 @@
 import { OUTREACH_STATUSES, type OutreachStatus, type Recruiter } from '../../lib/models/types.js';
+import { dueLabel, isDue } from '../../lib/recruiters/followUp.js';
 import { groupByCompany } from '../../lib/recruiters/groupByCompany.js';
 import { EditPanel } from './EditPanel.js';
 import { OUTREACH_LABELS } from './Filters.js';
@@ -62,6 +63,15 @@ export function RecruiterGroups({
                   {recruiter.headline ? (
                     <p className="card__role" title={recruiter.headline}>
                       {recruiter.headline}
+                    </p>
+                  ) : null}
+
+                  {recruiter.followUpAt ? (
+                    <p
+                      className={`card__due${isDue(recruiter) ? ' card__due--now' : ''}`}
+                      title={`Follow up on ${recruiter.followUpAt}`}
+                    >
+                      {dueLabel(recruiter.followUpAt)}
                     </p>
                   ) : null}
                 </div>

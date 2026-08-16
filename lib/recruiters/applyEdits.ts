@@ -11,6 +11,7 @@ export function toPanelValues(recruiter: Recruiter): Partial<SavePanelValues> {
     sourceUrl: recruiter.source.url ?? '',
     note: recruiter.note ?? '',
     tags: recruiter.tags,
+    followUpAt: recruiter.followUpAt ?? '',
   };
 }
 
@@ -35,6 +36,7 @@ export function applyEdits(
   const company = values.company.trim();
   const note = values.note.trim();
   const sourceUrl = values.sourceUrl.trim();
+  const followUpAt = values.followUpAt.trim();
 
   // A link only means something for a source that has one. Keeping a stale post
   // URL against "their profile" would be a quiet lie about where someone came
@@ -58,6 +60,7 @@ export function applyEdits(
     },
     tags: [...new Set(values.tags.map((tag) => tag.trim()).filter(Boolean))],
     ...(note ? { note } : {}),
+    ...(followUpAt ? { followUpAt } : {}),
     savedAt: recruiter.savedAt,
     updatedAt: now.toISOString(),
   };

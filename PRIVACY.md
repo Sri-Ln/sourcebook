@@ -43,6 +43,8 @@ We say this explicitly because "no data ever leaves your machine" would be a tid
 | `activeTab` | So the side panel's save button can read the LinkedIn tab you are looking at, at the moment you click it |
 | `*://*.linkedin.com/*` | To place a Save button on LinkedIn pages and read the profile you are viewing |
 | `sidePanel` | To show your saved list in the browser's side panel. It reads and writes nothing on its own. |
+| `alarms` | To wake once a day and check whether any follow-up you set has come due. |
+| `notifications` | **Optional, and only requested if you turn reminders on.** Used to show a single daily notice when follow-ups are due. |
 
 There is no `<all_urls>` access. sourcebook runs on LinkedIn and nowhere else.
 

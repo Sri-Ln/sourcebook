@@ -50,6 +50,12 @@ export interface Recruiter {
   source: RecruiterSource;
   tags: string[];
   note?: string;
+  /**
+   * When to get back in touch. A date only — the time of day is noise for
+   * something measured in days, and storing one would imply a precision the
+   * feature does not have.
+   */
+  followUpAt?: string;
   savedAt: string;
   updatedAt: string;
 }
