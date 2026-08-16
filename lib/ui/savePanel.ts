@@ -60,7 +60,7 @@ export function createSavePanel({
   onCancel,
 }: SavePanelOptions): HTMLFormElement {
   const form = document.createElement('form');
-  form.className = 'panel';
+  form.className = 'edit-form';
 
   const name = document.createElement('input');
   name.type = 'text';
@@ -167,7 +167,7 @@ export function createSavePanel({
   cancel.addEventListener('click', onCancel);
 
   const actions = document.createElement('div');
-  actions.className = 'panel__actions';
+  actions.className = 'edit-form__actions';
   actions.append(counter, cancel, save);
 
   form.append(
