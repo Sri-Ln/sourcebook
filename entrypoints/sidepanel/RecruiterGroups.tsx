@@ -1,8 +1,8 @@
-import { OUTREACH_STATUSES, type OutreachStatus, type Recruiter } from '../../lib/models/types.js';
+import type { OutreachStatus, Recruiter } from '../../lib/models/types.js';
 import { dueLabel, isDue } from '../../lib/recruiters/followUp.js';
 import { groupByCompany } from '../../lib/recruiters/groupByCompany.js';
 import { EditPanel } from './EditPanel.js';
-import { OUTREACH_LABELS } from './Filters.js';
+import { StatusMenu } from './StatusMenu.js';
 
 export interface RecruiterGroupsProps {
   recruiters: Recruiter[];
@@ -77,20 +77,11 @@ export function RecruiterGroups({
                 </div>
 
                 <div className="card__actions">
-                  <select
-                    className={`status status--${recruiter.outreach}`}
-                    aria-label={`Outreach status for ${recruiter.name}`}
+                  <StatusMenu
                     value={recruiter.outreach}
-                    onChange={(event) =>
-                      onStatusChange(recruiter, event.target.value as OutreachStatus)
-                    }
-                  >
-                    {OUTREACH_STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {OUTREACH_LABELS[status]}
-                      </option>
-                    ))}
-                  </select>
+                    personName={recruiter.name}
+                    onChange={(status) => onStatusChange(recruiter, status)}
+                  />
 
                   {overflowedIds.includes(recruiter.id) ? (
                     <span className="warning" title="Sync storage is full — saved on this device only">

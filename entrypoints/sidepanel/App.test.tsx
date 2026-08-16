@@ -56,6 +56,14 @@ function recruiter(overrides: Partial<Recruiter> = {}): Recruiter {
   };
 }
 
+/** Opens the status menu for someone and picks an option. */
+async function chooseStatus(person: string, label: string) {
+  await userEvent.click(
+    screen.getByRole('button', { name: new RegExp(`Outreach status for ${person}`, 'i') }),
+  );
+  await userEvent.click(await screen.findByRole('option', { name: label }));
+}
+
 function loaded(recruiters: Recruiter[], overflowedIds: string[] = []) {
   list.mockResolvedValue({ recruiters, overflowedIds });
 }
@@ -218,10 +226,7 @@ describe('side panel', () => {
       render(<App />);
       await screen.findByText('Jane Placeholder');
 
-      await userEvent.selectOptions(
-        screen.getByLabelText(/Outreach status for Jane Placeholder/i),
-        'messaged',
-      );
+      await chooseStatus('Jane Placeholder', 'Messaged');
 
       await waitFor(() => expect(save).toHaveBeenCalled());
       expect(save).toHaveBeenCalledWith(
@@ -235,10 +240,7 @@ describe('side panel', () => {
       render(<App />);
       await screen.findByText('Jane Placeholder');
 
-      await userEvent.selectOptions(
-        screen.getByLabelText(/Outreach status for Jane Placeholder/i),
-        'replied',
-      );
+      await chooseStatus('Jane Placeholder', 'Replied');
 
       await waitFor(() => expect(save).toHaveBeenCalled());
       const [saved] = save.mock.calls[0] as [Recruiter];
@@ -252,16 +254,13 @@ describe('side panel', () => {
       render(<App />);
       await screen.findByText('Jane Placeholder');
 
-      await userEvent.selectOptions(
-        screen.getByLabelText(/Outreach status for Jane Placeholder/i),
-        'messaged',
-      );
+      await chooseStatus('Jane Placeholder', 'Messaged');
 
       // Leaving a change on screen that never landed is worse than undoing it.
       await waitFor(() =>
-        expect(screen.getByLabelText(/Outreach status for Jane Placeholder/i)).toHaveValue(
-          'not-contacted',
-        ),
+        expect(
+          screen.getByRole('button', { name: /Outreach status for Jane Placeholder/i }),
+        ).toHaveTextContent('Not contacted'),
       );
     });
 
