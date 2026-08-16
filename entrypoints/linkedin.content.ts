@@ -29,6 +29,15 @@ export default defineContentScript({
   matches: ['*://*.linkedin.com/*'],
 
   main() {
+    // A marker so "the script never ran" and "the script ran but did not mount"
+    // can be told apart from the console. Reloading the extension does not
+    // re-inject content scripts into tabs that are already open, and that
+    // single fact has now cost two rounds of diagnosis.
+    document.documentElement.setAttribute(
+      'data-sourcebook',
+      browser.runtime.getManifest().version,
+    );
+
     let inFlight: AbortController | undefined;
 
     /**
