@@ -131,6 +131,50 @@ describe('findMountTarget', () => {
     expect(target?.position).toBe('afterend');
   });
 
+  it('sits beside the overflow control when Message is absent', () => {
+    // Every profile has an overflow ("More") control even when Message is
+    // missing, and it lives in the action row -- so the button lands in the
+    // same place rather than at the foot of the card.
+    const doc = page(`
+      <main>
+        <div id="card">
+          <div><a href="/in/jane"><h2>Jane</h2></a></div>
+          <div id="row">
+            <div id="morewrap"><button aria-expanded="false">More</button></div>
+          </div>
+        </div>
+      </main>`);
+
+    const target = findMountTarget(doc);
+
+    expect(target?.anchor.id).toBe('morewrap');
+    expect(target?.position).toBe('afterend');
+  });
+
+  it('ignores an overflow control that precedes the name', () => {
+    // The sticky header carries its own copy, and it is above the name.
+    const doc = page(`
+      <main>
+        <div id="sticky"><button aria-expanded="false">More</button></div>
+        <div id="card">
+          <div><a href="/in/jane"><h2>Jane</h2></a></div>
+          <div id="topwrap"><button aria-expanded="false">More</button></div>
+        </div>
+      </main>`);
+
+    expect(findMountTarget(doc)?.anchor.id).toBe('topwrap');
+  });
+
+  it('finds the overflow control by attribute, not by label', () => {
+    const doc = page(`
+      <main>
+        <div><a href="/in/jane"><h2>Jane</h2></a></div>
+        <div id="wrap"><button aria-expanded="false">その他</button></div>
+      </main>`);
+
+    expect(findMountTarget(doc)?.anchor.id).toBe('wrap');
+  });
+
   it('still mounts on a profile with no Message link', () => {
     // LinkedIn omits it when you cannot message someone: no connection,
     // restricted privacy, no InMail. Anchoring only to it meant no button at
@@ -143,6 +187,8 @@ describe('findMountTarget', () => {
         </div>
       </main>`);
 
+    // No Message link and no overflow control either, so this falls through to
+    // the nearest ancestor of the name that holds a button.
     const target = findMountTarget(doc);
 
     expect(target).not.toBeNull();
@@ -161,20 +207,6 @@ describe('findMountTarget', () => {
 
   it('gives up only when there is no name at all', () => {
     expect(findMountTarget(page('<main><p>not a profile</p></main>'))).toBeNull();
-  });
-
-  it('does not match on button text, which is localised', () => {
-    // "Connect" is not "Connect" for everyone. The fallback finds the action
-    // area structurally, so a German or Japanese profile behaves the same.
-    const doc = page(`
-      <main>
-        <div id="card">
-          <div><a href="/in/jane"><h2>Jane</h2></a></div>
-          <div><button>フォロー</button></div>
-        </div>
-      </main>`);
-
-    expect(findMountTarget(doc)?.anchor.id).toBe('card');
   });
 
   it('finds a target on every real capture', () => {
