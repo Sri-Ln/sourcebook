@@ -64,6 +64,28 @@ export function findActionAnchor(doc: Document): Element | null {
 const ANCESTOR_LIMIT = 10;
 
 /**
+ * The overflow ("More") control in the action row.
+ *
+ * Unlike Message, this is on every profile — there is always something to put
+ * behind it. It is found by `aria-expanded`, which is a structural attribute
+ * rather than a label, so it works whatever language the interface is in.
+ *
+ * `aria-expanded` is not unique on the page: a real profile has around thirty.
+ * Proximity to the name is what narrows it, exactly as with the Message link.
+ */
+function findOverflowButton(doc: Document): Element | null {
+  const nameLink = findNameLink(doc);
+  if (!nameLink) return null;
+
+  const candidates = [...doc.querySelectorAll('button[aria-expanded]')].filter(
+    (el) => nameLink.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+
+  const rendered = candidates.filter(isRendered);
+  return (rendered.length > 0 ? rendered : candidates)[0] ?? null;
+}
+
+/**
  * Decides where the Save button goes.
  *
  * The Message link is the nicest place to sit, and it is **not always there**.
@@ -78,14 +100,23 @@ const ANCESTOR_LIMIT = 10;
  * In order:
  *
  * 1. Beside the Message link, in the action row.
- * 2. Inside the nearest ancestor of the name that holds buttons, which is the
- *    top card's action area.
- * 3. Immediately after the name itself, which cannot fail.
+ * 2. Beside the overflow ("More") control, which every profile has, found by
+ *    `aria-expanded` rather than by its label.
+ * 3. Inside the nearest ancestor of the name that holds buttons.
+ * 4. Immediately after the name itself, which cannot fail.
  */
 export function findMountTarget(doc: Document): MountTarget | null {
   const messageLink = findActionAnchor(doc);
   if (messageLink) {
     return { anchor: messageLink.parentElement ?? messageLink, position: 'afterend' };
+  }
+
+  // Every profile has an overflow control even when Message is absent, and it
+  // lives in the action row -- so this lands the button in the same place the
+  // Message branch would, rather than at the foot of the card.
+  const overflow = findOverflowButton(doc);
+  if (overflow) {
+    return { anchor: overflow.parentElement ?? overflow, position: 'afterend' };
   }
 
   const nameLink = findNameLink(doc);
