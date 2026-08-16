@@ -6,6 +6,14 @@ This project follows [semantic versioning](https://semver.org/). Before 1.0 the 
 
 ## Unreleased
 
+## 0.1.3 — 2026-08-16
+
+### Fixed
+
+- **The Save button now appears on profiles you cannot message.** It was anchored to the link to the messaging composer, which LinkedIn omits when there is no connection, privacy restricts it, or you have no InMail — so on those profiles the button waited for an element that was never coming and gave up silently. It now anchors to the person's name, the one element a profile cannot omit, and still sits beside Message whenever that exists.
+
+  Every rule is matched on structure and URL shape rather than on button text, because LinkedIn is localised and "Connect" is not "Connect" for everyone.
+
 ## 0.1.2 — 2026-08-16
 
 ### Added
