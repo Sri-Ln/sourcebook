@@ -103,8 +103,8 @@ export default function App() {
   const visible = useMemo(() => filterRecruiters(all, filter), [all, filter]);
 
   return (
-    <div className="panel">
-      <header className="panel__header">
+    <div className="app">
+      <header className="app__header">
         <h1>sourcebook</h1>
         <SaveCurrentPage
           client={recruiterClient}

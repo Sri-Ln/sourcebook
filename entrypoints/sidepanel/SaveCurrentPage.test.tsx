@@ -27,16 +27,24 @@ const draft: ProfileDraft = {
 function setup(over: Partial<Parameters<typeof SaveCurrentPage>[0]> = {}) {
   const client = over.client ?? fakeClient();
   const onSaved = vi.fn();
+  // Captured so a test can simulate the user switching tab.
+  let fireTabChange: () => void = () => {};
+  const onTabChanged = (listener: () => void) => {
+    fireTabChange = listener;
+    return () => {};
+  };
+
   render(
     <SaveCurrentPage
       client={client}
       inspect={vi.fn().mockResolvedValue({ savable: true, tabId: 7 })}
       requestDraft={vi.fn().mockResolvedValue(draft)}
       onSaved={onSaved}
+      onTabChanged={onTabChanged}
       {...over}
     />,
   );
-  return { client, onSaved };
+  return { client, onSaved, tabChanged: () => fireTabChange() };
 }
 
 const button = () => screen.getByRole('button');
@@ -117,6 +125,50 @@ describe('SaveCurrentPage', () => {
     // and the fix is something only the user can do.
     expect(await screen.findByRole('alert')).toBeDefined();
     expect(screen.getByText(/reloading the LinkedIn tab/i)).toBeDefined();
+  });
+
+  describe('following the active tab', () => {
+    it('goes back to offering a save after moving to another profile', async () => {
+      const { tabChanged } = setup();
+      await waitFor(() => expect(button()).not.toBeDisabled());
+
+      await userEvent.click(button());
+      await waitFor(() => expect(button()).toHaveTextContent('Saved'));
+
+      tabChanged();
+
+      // The panel stays open across navigations. Without re-probing, "Saved ✓"
+      // would persist onto every subsequent profile and block saving them.
+      await waitFor(() => expect(button()).toHaveTextContent('Save this profile'));
+      expect(button()).not.toBeDisabled();
+    });
+
+    it('disables again when the new tab is not a profile', async () => {
+      const inspect = vi
+        .fn()
+        .mockResolvedValueOnce({ savable: true, tabId: 7 })
+        .mockResolvedValue({ savable: false, reason: 'Open someone’s profile page.' });
+      const { tabChanged } = setup({ inspect });
+      await waitFor(() => expect(button()).not.toBeDisabled());
+
+      tabChanged();
+
+      await waitFor(() => expect(button()).toBeDisabled());
+      expect(screen.getByText(/Open someone/)).toBeDefined();
+    });
+
+    it('re-enables when returning to a profile tab', async () => {
+      const inspect = vi
+        .fn()
+        .mockResolvedValueOnce({ savable: false, reason: 'Not a profile.' })
+        .mockResolvedValue({ savable: true, tabId: 9 });
+      const { tabChanged } = setup({ inspect });
+      await waitFor(() => expect(button()).toBeDisabled());
+
+      tabChanged();
+
+      await waitFor(() => expect(button()).not.toBeDisabled());
+    });
   });
 
   it('offers a retry after a failure', async () => {
