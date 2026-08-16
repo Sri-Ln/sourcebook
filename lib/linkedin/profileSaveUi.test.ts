@@ -3,7 +3,7 @@ import { loadFixture } from '../../tests/helpers/loadFixture.js';
 import { HOST_ATTRIBUTE } from '../ui/shadowMount.js';
 import type { RecruiterClient } from '../messaging/client.js';
 import { SCHEMA_VERSION, type Recruiter } from '../models/types.js';
-import { HOST_ID, mountProfileSaveUi } from './profileSaveUi.js';
+import { HOST_ID, MOUNTED_PATH_ATTRIBUTE, mountProfileSaveUi } from './profileSaveUi.js';
 
 function fakeClient(overrides: Partial<RecruiterClient> = {}): RecruiterClient {
   return {
@@ -62,6 +62,17 @@ describe('mountProfileSaveUi', () => {
       'no-anchor',
     );
     expect(document.querySelector(`[${HOST_ATTRIBUTE}]`)).toBeNull();
+  });
+
+  it('stamps the host with the profile it belongs to', async () => {
+    loadProfilePage();
+
+    await mountProfileSaveUi({ client: fakeClient() });
+
+    // Without this a button left over from the previous profile is
+    // indistinguishable from a correct one, and would save the wrong person.
+    const host = document.querySelector(`[${HOST_ATTRIBUTE}="${HOST_ID}"]`);
+    expect(host?.getAttribute(MOUNTED_PATH_ATTRIBUTE)).toBe(document.location.pathname);
   });
 
   it('does not stack a second host when mounted twice', async () => {
