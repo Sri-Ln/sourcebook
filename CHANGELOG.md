@@ -6,6 +6,23 @@ This project follows [semantic versioning](https://semver.org/). Before 1.0 the 
 
 ## Unreleased
 
+## 0.1.1 — 2026-08-16
+
+### Fixed
+
+- **The Save button now appears on the profile page.** A profile carries five links to the messaging composer, and the button was mounting beside the first in document order — LinkedIn's sticky header, which is off-screen until you scroll. It now prefers a link that actually renders, and among those the one following the person's name, which is the top card's action row. The button is also filled and sized to sit among LinkedIn's own pill buttons rather than being a transparent outline that was easy to miss even when correctly placed.
+- **The side panel's save button follows the active tab.** It probed once on mount, so after a single save it read "Saved" on every profile visited afterwards, and stayed disabled — meaning those people could not be saved from the panel at all.
+
+### Changed
+
+- **Outreach status is a real listbox rather than a `<select>`.** A native select's menu is drawn by the operating system and cannot be styled, so the open state stayed plain however the closed control looked. Arrow keys, Home, End, Enter and Escape are implemented and tested; the menu is promoted to the top layer so the scrolling panel cannot clip it.
+- **Company headings are larger than the names beneath them.** They were previously the same size, leaving nothing to separate a heading from a row.
+- The side panel has a proper token set, focus rings, and status colours distinguished by hue at matched lightness.
+
+### Added
+
+- The content script stamps `data-sourcebook="<version>"` on the page, so "the script never ran" and "the script ran but did not mount" can be told apart in one query. Reloading an extension does not re-inject content scripts into already-open tabs, and that distinction cost two rounds of diagnosis.
+
 ## 0.1.0 — 2026-08-15
 
 First tagged build. Complete recruiter workflow; not yet submitted to any extension store.
