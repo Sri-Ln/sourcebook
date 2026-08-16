@@ -6,6 +6,16 @@ This project follows [semantic versioning](https://semver.org/). Before 1.0 the 
 
 ## Unreleased
 
+## 0.1.2 — 2026-08-16
+
+### Added
+
+- **Remove a saved person from their profile page.** The Save button toggles: click "Saved" to remove, with an eight second Undo. Undo restores the exact record — same note, same tags, same follow-up date — rather than a fresh one rebuilt from the page, because removal destroys things the page cannot reconstruct.
+
+### Changed
+
+- The side panel no longer carries a title above the save button. The browser already labels the panel.
+
 ## 0.1.1 — 2026-08-16
 
 ### Fixed
