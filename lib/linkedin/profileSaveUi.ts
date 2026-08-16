@@ -13,6 +13,9 @@ export const ANCHOR_SELECTOR = 'a[href*="/messaging/compose"]';
 
 export const HOST_ID = 'save-recruiter';
 
+/** Records which profile the mounted button belongs to, so staleness is visible. */
+export const MOUNTED_PATH_ATTRIBUTE = 'data-sourcebook-path';
+
 export type MountOutcome = 'mounted' | 'no-anchor';
 
 export interface MountOptions {
@@ -85,6 +88,11 @@ export async function mountProfileSaveUi({
     id: HOST_ID,
     position: 'afterend',
   });
+
+  // Stamped so the content script can tell a button for *this* profile from one
+  // left over from the last. Without it a stale button is indistinguishable
+  // from a correct one, and it would happily save the wrong person.
+  (root.host as HTMLElement).setAttribute(MOUNTED_PATH_ATTRIBUTE, doc.location.pathname);
 
   const button = doc.createElement('button');
   button.type = 'button';
