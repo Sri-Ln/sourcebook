@@ -6,35 +6,45 @@ This project follows [semantic versioning](https://semver.org/). Before 1.0 the 
 
 ## Unreleased
 
-## 0.1.0 — 2026-08-13
+## 0.1.0 — 2026-08-15
 
-First tagged build. Complete recruiter-saving workflow; not yet submitted to any extension store.
+First tagged build. Complete recruiter workflow; not yet submitted to any extension store.
 
-### Added
+### Saving
 
-- **Save a recruiter from their LinkedIn profile.** A Save button beside Message opens a panel prefilled by extraction, with every field editable. Records where you found them, a note capped at 300 characters, tags, and outreach status.
-- **Save from the popup** when the in-page button cannot mount. Reads the active tab and reuses the same extractor, so a LinkedIn redesign costs one extra click rather than the whole feature.
-- **Profile extraction** built against real captured markup. Semantics-first — a heading inside an `/in/` link, the document title, `profileUrn` for a stable member id — because LinkedIn's class names are build hashes that change on every deploy.
-- **Browse, search and filter.** Search spans names, companies, and your own notes. Filter by outreach status or tag; never-contacted is one click. Filter state survives the popup closing.
-- **Inline outreach status editing** from the list row, applied optimistically and reconciled if the write fails.
-- **Options page** with a storage quota meter, JSON export and import with a dry-run count, and tag rename/delete across all records.
-- **Job description storage and rolecraft export formatting.** Built and tested, but not yet wired to any capture surface.
+- **One click from a LinkedIn profile.** A Save button beside Message captures name, role, company and a stable member id, and stores it immediately — no form, no confirmation. Corrections happen later, from the list.
+- **Save from the side panel** when the in-page button cannot mount, so a LinkedIn redesign costs one extra click rather than the whole feature.
+- **Extraction is semantics-first**, built against real captured pages. LinkedIn ships build-hashed class names, no `<h1>`, and no structured data on an authenticated profile, so the extractor reads a heading inside an `/in/` link, the document title, `profileUrn`, and URL shapes — the things that survive a redesign.
 
-### Storage
+### The side panel
 
-- Recruiters live in `chrome.storage.sync`, one item per record, behind a `SyncProvider` interface so the backend can be replaced without touching anything above it.
-- All writes route through the background worker, which serialises them, retries rate limits with exponential backoff, and falls back to local storage when the sync quota is full — flagged as "Not synced" rather than silently claiming success.
+- **Opens from the toolbar icon and stays open while you browse.** A popup closes the moment focus leaves it, which threw away the list on every click.
+- **Grouped by company**, with a count per group. Company is the axis that matters: you look someone up because a role opened where they work.
+- **Cards show a name and a role, nothing else.** A list you scan is only useful if there is little to read per row.
+- **Search across everything**, including notes that are not shown on the card. Filter by outreach status, by tag, or to everyone never contacted. Filter state survives the panel closing.
+- **Edit any saved person** — note, tags, company, headline, name, and where you found them. Identity fields are deliberately not editable.
+- **Outreach status** changes from the row, applied immediately and reconciled if the write fails.
+
+### Follow-ups
+
+- Set a **follow-up date** on anyone; see Overdue, Today, or a countdown on their card, and filter to what is due.
+- **One notification a day** covering everyone due — not one per person. Notifications are an optional permission requested on first use; the Due filter and badges work without it.
+
+### Storage and privacy
+
+- Recruiters live in `chrome.storage.sync`, one item per record, behind an interface that can be swapped for a backend later. Job descriptions and view preferences live in local storage.
+- All writes go through the background worker, which serialises them, retries rate limits with backoff, and **falls back to local storage when sync fills up** — flagged as "Not synced" rather than silently claiming success.
 - Records that fail validation are quarantined, never dropped.
+- **Options page** with a real byte-based quota meter, JSON export and import with a dry run, and tag rename/delete.
+- No server, no account, no telemetry. Permissions limited to `storage`, `activeTab`, `alarms`, `sidePanel`, and LinkedIn host access, enforced by an audit that runs in CI. [Privacy policy](PRIVACY.md).
 
-### Privacy
+### Also built, not yet wired up
 
-- No server, no account, no telemetry, no network requests of its own.
-- Permissions limited to `storage`, `activeTab`, and `*://*.linkedin.com/*`, enforced by an audit that runs in CI.
-- [Privacy policy](PRIVACY.md) states plainly that `chrome.storage.sync` is synchronised by the browser, rather than making a tidier claim that would be false.
+Job description storage and the rolecraft export formatter are implemented and tested, but nothing captures a job description yet.
 
 ### Known gaps
 
-- Not yet verified against live LinkedIn. Extraction is tested against three real captures, but LinkedIn's markup changes without notice.
-- Job description capture is not implemented; the storage and formatter behind it are.
-- Chrome only so far. Firefox builds in CI; Edge and Safari are untouched.
-- Store screenshots not captured.
+- **Not yet verified against live LinkedIn** beyond manual spot checks. Extraction is tested against three real captures, but LinkedIn's markup changes without notice.
+- Saving from a feed post is not implemented, so provenance defaults to "their profile" until corrected.
+- Chrome only. Firefox builds in CI and the side panel maps to `sidebar_action`, but nothing has been run there. Edge and Safari untouched.
+- No store screenshots, and no store submission.
