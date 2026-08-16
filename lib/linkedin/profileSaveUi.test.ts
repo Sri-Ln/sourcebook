@@ -3,7 +3,12 @@ import { loadFixture } from '../../tests/helpers/loadFixture.js';
 import { HOST_ATTRIBUTE } from '../ui/shadowMount.js';
 import type { RecruiterClient } from '../messaging/client.js';
 import { SCHEMA_VERSION, type Recruiter } from '../models/types.js';
-import { HOST_ID, MOUNTED_PATH_ATTRIBUTE, mountProfileSaveUi } from './profileSaveUi.js';
+import {
+  HOST_ID,
+  MOUNTED_PATH_ATTRIBUTE,
+  findActionAnchor,
+  mountProfileSaveUi,
+} from './profileSaveUi.js';
 
 function fakeClient(overrides: Partial<RecruiterClient> = {}): RecruiterClient {
   return {
@@ -39,6 +44,72 @@ function shadow(): ShadowRoot {
 }
 
 const button = () => shadow().querySelector<HTMLButtonElement>('button.save')!;
+
+describe('findActionAnchor', () => {
+  /** jsdom gives every element a zero rect, so visibility is stubbed per element. */
+  function withHeight(el: Element, height: number) {
+    el.getBoundingClientRect = () =>
+      ({ width: height ? 100 : 0, height, x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0,
+         toJSON: () => ({}) }) as DOMRect;
+  }
+
+  function page(html: string): Document {
+    return new DOMParser().parseFromString(html, 'text/html');
+  }
+
+  it('returns null when the page has no message link', () => {
+    expect(findActionAnchor(page('<main><p>nothing</p></main>'))).toBeNull();
+  });
+
+  it('skips a link that renders at zero height', () => {
+    const doc = page(`
+      <main>
+        <a id="hidden" href="/messaging/compose/?x">Message</a>
+        <a href="/in/jane"><h2>Jane</h2></a>
+        <a id="visible" href="/messaging/compose/?y">Message</a>
+      </main>`);
+    withHeight(doc.querySelector('#hidden')!, 0);
+    withHeight(doc.querySelector('#visible')!, 32);
+
+    // A button in a collapsed container is invisible by construction.
+    expect(findActionAnchor(doc)?.id).toBe('visible');
+  });
+
+  it('prefers the link that follows the name over one that precedes it', () => {
+    const doc = page(`
+      <main>
+        <a id="sticky" href="/messaging/compose/?x">Message</a>
+        <a href="/in/jane"><h2>Jane</h2></a>
+        <a id="topcard" href="/messaging/compose/?y">Message</a>
+      </main>`);
+    for (const el of doc.querySelectorAll('a')) withHeight(el, 32);
+
+    // Taking the first in document order is what put the button in LinkedIn's
+    // sticky header, off-screen until scrolled.
+    expect(findActionAnchor(doc)?.id).toBe('topcard');
+  });
+
+  it('falls back to the first candidate when no name element is found', () => {
+    const doc = page('<main><a id="only" href="/messaging/compose/?x">Message</a></main>');
+    withHeight(doc.querySelector('#only')!, 32);
+
+    expect(findActionAnchor(doc)?.id).toBe('only');
+  });
+
+  it('falls back to all candidates when none report a size', () => {
+    // Mid-render, or in a test environment, every rect can be zero. Returning
+    // nothing would be worse than returning the best guess.
+    const doc = page('<main><a id="a" href="/messaging/compose/?x">Message</a></main>');
+
+    expect(findActionAnchor(doc)?.id).toBe('a');
+  });
+
+  it('picks the top card anchor on a real capture', () => {
+    const doc = loadFixture('profile-recruiter-1');
+
+    expect(findActionAnchor(doc)).not.toBeNull();
+  });
+});
 
 describe('mountProfileSaveUi', () => {
   beforeEach(() => {
