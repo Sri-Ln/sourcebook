@@ -104,8 +104,9 @@ export default function App() {
 
   return (
     <div className="app">
+      {/* No title here: the browser already labels the panel, and a heading
+          above a single button was two lines of chrome for no information. */}
       <header className="app__header">
-        <h1>sourcebook</h1>
         <SaveCurrentPage
           client={recruiterClient}
           inspect={inspectActiveTab}
