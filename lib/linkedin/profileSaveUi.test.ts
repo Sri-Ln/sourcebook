@@ -8,6 +8,7 @@ import {
   MOUNTED_PATH_ATTRIBUTE,
   UNDO_MS,
   findActionAnchor,
+  findMountTarget,
   mountProfileSaveUi,
 } from './profileSaveUi.js';
 
@@ -109,6 +110,77 @@ describe('findActionAnchor', () => {
     const doc = loadFixture('profile-recruiter-1');
 
     expect(findActionAnchor(doc)).not.toBeNull();
+  });
+});
+
+describe('findMountTarget', () => {
+  function page(html: string): Document {
+    return new DOMParser().parseFromString(html, 'text/html');
+  }
+
+  it('sits beside the Message link when there is one', () => {
+    const doc = page(`
+      <main>
+        <a href="/in/jane"><h2>Jane</h2></a>
+        <div id="row"><div id="msgwrap"><a href="/messaging/compose/?x">Message</a></div></div>
+      </main>`);
+
+    const target = findMountTarget(doc);
+
+    expect(target?.anchor.id).toBe('msgwrap');
+    expect(target?.position).toBe('afterend');
+  });
+
+  it('still mounts on a profile with no Message link', () => {
+    // LinkedIn omits it when you cannot message someone: no connection,
+    // restricted privacy, no InMail. Anchoring only to it meant no button at
+    // all on those profiles.
+    const doc = page(`
+      <main>
+        <div id="card">
+          <div><a href="/in/jane"><h2>Jane</h2></a></div>
+          <div><button>Follow</button></div>
+        </div>
+      </main>`);
+
+    const target = findMountTarget(doc);
+
+    expect(target).not.toBeNull();
+    expect(target?.anchor.id).toBe('card');
+    expect(target?.position).toBe('beforeend');
+  });
+
+  it('falls back to the name itself when nothing button-shaped is near', () => {
+    const doc = page('<main><div id="only"><a href="/in/jane"><h2>Jane</h2></a></div></main>');
+
+    const target = findMountTarget(doc);
+
+    // Not elegant, but visible, and visible beats absent.
+    expect(target?.anchor.id).toBe('only');
+  });
+
+  it('gives up only when there is no name at all', () => {
+    expect(findMountTarget(page('<main><p>not a profile</p></main>'))).toBeNull();
+  });
+
+  it('does not match on button text, which is localised', () => {
+    // "Connect" is not "Connect" for everyone. The fallback finds the action
+    // area structurally, so a German or Japanese profile behaves the same.
+    const doc = page(`
+      <main>
+        <div id="card">
+          <div><a href="/in/jane"><h2>Jane</h2></a></div>
+          <div><button>フォロー</button></div>
+        </div>
+      </main>`);
+
+    expect(findMountTarget(doc)?.anchor.id).toBe('card');
+  });
+
+  it('finds a target on every real capture', () => {
+    for (const fixture of ['profile-recruiter-1', 'profile-recruiter-2', 'profile-recruiter-3']) {
+      expect(findMountTarget(loadFixture(fixture))).not.toBeNull();
+    }
   });
 });
 

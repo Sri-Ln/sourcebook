@@ -12,44 +12,96 @@ import { waitForElement } from '../ui/waitForElement.js';
  */
 export const ANCHOR_SELECTOR = 'a[href*="/messaging/compose"]';
 
+/** Where to put the button, and how to attach it there. */
+export interface MountTarget {
+  anchor: Element;
+  position: InsertPosition;
+}
+
+/** The person's own name: the one element a profile page cannot omit. */
+function findNameLink(doc: Document): Element | null {
+  return (
+    [...doc.querySelectorAll('h2')].find((h) => h.closest('a[href*="/in/"]'))?.closest(
+      'a[href*="/in/"]',
+    ) ?? null
+  );
+}
+
+function isRendered(el: Element): boolean {
+  const box = el.getBoundingClientRect();
+  return box.width > 0 && box.height > 0;
+}
+
 /**
- * Picks which Message link to sit beside.
+ * Chooses which of the page's Message links to sit beside.
  *
- * A profile carries **five** of them. Taking the first in document order put the
- * button somewhere real but unhelpful — most likely LinkedIn's sticky header,
- * which is off-screen until you scroll. The button mounted, reported the right
- * profile and threw nothing, which is exactly why this took so long to see.
+ * A profile carries five. Taking the first in document order put the button in
+ * LinkedIn's sticky header, which is off-screen until you scroll.
  *
- * Two rules, in order:
- *
- * 1. Prefer one that is actually rendered. A zero-height rect means a collapsed
- *    or hidden container, and a button there is invisible by construction.
- * 2. Among those, take the one nearest the person's name in document order.
- *    The top card's action row follows the name; the sticky header's copy does
- *    not.
+ * Prefer one that actually renders, then the one following the name: the top
+ * card's action row comes after the name, the sticky header's copy does not.
  */
 export function findActionAnchor(doc: Document): Element | null {
   const candidates = [...doc.querySelectorAll(ANCHOR_SELECTOR)];
   if (candidates.length === 0) return null;
 
-  const rendered = candidates.filter((el) => {
-    const box = el.getBoundingClientRect();
-    return box.width > 0 && box.height > 0;
-  });
-
-  // jsdom reports every rect as zero, and a real page mid-render can too.
+  const rendered = candidates.filter(isRendered);
+  // jsdom reports every rect as zero, and so can a real page mid-render.
   // Falling back to all candidates beats returning nothing.
   const usable = rendered.length > 0 ? rendered : candidates;
 
-  const nameNode =
-    [...doc.querySelectorAll('h2')].find((h) => h.closest('a[href*="/in/"]')) ?? null;
-  if (!nameNode) return usable[0] ?? null;
+  const nameLink = findNameLink(doc);
+  if (!nameLink) return usable[0] ?? null;
 
   const after = usable.filter(
-    (el) => nameNode.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING,
+    (el) => nameLink.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING,
   );
 
   return after[0] ?? usable[0] ?? null;
+}
+
+/** How far to walk up from the name looking for the action area. */
+const ANCESTOR_LIMIT = 10;
+
+/**
+ * Decides where the Save button goes.
+ *
+ * The Message link is the nicest place to sit, and it is **not always there**.
+ * LinkedIn omits it when you cannot message someone: no connection, restricted
+ * privacy, no InMail. Anchoring only to it means no button at all on those
+ * profiles.
+ *
+ * So the name is the floor. It is the one element a profile must have, and it
+ * is matched structurally rather than by text, which matters because LinkedIn
+ * is localised and "Connect" is not "Connect" for everyone.
+ *
+ * In order:
+ *
+ * 1. Beside the Message link, in the action row.
+ * 2. Inside the nearest ancestor of the name that holds buttons, which is the
+ *    top card's action area.
+ * 3. Immediately after the name itself, which cannot fail.
+ */
+export function findMountTarget(doc: Document): MountTarget | null {
+  const messageLink = findActionAnchor(doc);
+  if (messageLink) {
+    return { anchor: messageLink.parentElement ?? messageLink, position: 'afterend' };
+  }
+
+  const nameLink = findNameLink(doc);
+  if (!nameLink) return null;
+
+  let ancestor = nameLink.parentElement;
+  for (let depth = 0; ancestor && depth < ANCESTOR_LIMIT; depth += 1) {
+    if (ancestor.querySelector('button')) {
+      return { anchor: ancestor, position: 'beforeend' };
+    }
+    ancestor = ancestor.parentElement;
+  }
+
+  // Nothing button-shaped anywhere above the name. Sitting directly after it is
+  // not elegant, but it is visible, and visible beats absent.
+  return { anchor: nameLink.parentElement ?? nameLink, position: 'afterend' };
 }
 
 export const HOST_ID = 'save-recruiter';
@@ -134,22 +186,24 @@ export async function mountProfileSaveUi({
   extract = extractProfile,
   signal,
 }: MountOptions): Promise<MountOutcome> {
-  // Waits for any Message link to exist, then chooses between them. Waiting on
-  // the selector alone would settle for whichever appeared first.
-  const appeared = await waitForElement(ANCHOR_SELECTOR, {
+  // Waits for the name, not the Message link. The name is always present; the
+  // Message link is not, and waiting on it meant timing out to nothing on any
+  // profile you cannot message.
+  const appeared = await waitForElement('a[href*="/in/"] h2', {
     root: doc,
     ...(timeoutMs ? { timeoutMs } : {}),
     ...(signal ? { signal } : {}),
   });
   if (!appeared || signal?.aborted) return 'no-anchor';
 
-  const anchor = findActionAnchor(doc) ?? appeared;
+  const target = findMountTarget(doc);
+  if (!target) return 'no-anchor';
 
   const draft = extract(doc);
   const root = mountShadowHost({
-    anchor: anchor.parentElement ?? anchor,
+    anchor: target.anchor,
     id: HOST_ID,
-    position: 'afterend',
+    position: target.position,
   });
 
   // Stamped so the content script can tell a button for *this* profile from one
