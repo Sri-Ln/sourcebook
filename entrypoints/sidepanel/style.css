@@ -780,23 +780,22 @@ button.status[aria-expanded='true'] .status__caret {
     background-color var(--fast) var(--ease);
 }
 
-/* Two borders on a rotated square. Same technique as `.status__caret`, which is
-   already how the status pill draws its own marker. */
+/*
+ * A square box whose drawing is centred inside it, so the flex centring above
+ * puts the mark in the middle and the padding is even on all four sides. About a
+ * tenth smaller than the rotated-border version it replaces, which had grown
+ * slightly overbearing.
+ */
 .calendar__chevron {
-  width: 8px;
-  height: 8px;
-  border-top: 2px solid currentColor;
-  border-right: 2px solid currentColor;
+  display: block;
+  width: 10px;
+  height: 10px;
 }
 
-/* Rotating leaves the visual mass off-centre, because the ink sits along one
-   corner rather than through the middle. The nudge is optical, not arithmetic. */
-.calendar__page--prev .calendar__chevron {
-  transform: rotate(-135deg) translate(-1px, -1px);
-}
-
-.calendar__page--next .calendar__chevron {
-  transform: rotate(45deg) translate(-1px, -1px);
+/* Mirrored rather than drawn twice. It is symmetric about its own centre, so
+   flipping cannot shift it off centre. */
+.calendar__chevron--flip {
+  transform: scaleX(-1);
 }
 
 .calendar__page:hover {
@@ -880,9 +879,24 @@ button.status[aria-expanded='true'] .status__caret {
  * click — so opening the panel by clicking marked nothing at all, and with no
  * date set there was nothing highlighted anywhere on the grid.
  */
+/*
+ * Today carries a translucent wash of the accent.
+ *
+ * It was marked with a `--line-strong` border, which measures 1.75:1 against the
+ * calendar surface — technically present, invisible in practice, and the reason
+ * today looked unmarked. A tint reads immediately at a glance without competing
+ * with the solid fill that means "chosen", so the two states stay tellable
+ * apart: today is washed, the selection is filled.
+ */
 .calendar__day[data-today='true'] {
-  border-color: var(--line-strong);
-  font-weight: 650;
+  color: var(--accent);
+  background: color-mix(in oklch, var(--accent) 14%, transparent);
+  border-color: color-mix(in oklch, var(--accent) 35%, transparent);
+  font-weight: 700;
+}
+
+.calendar__day[data-today='true']:hover {
+  background: color-mix(in oklch, var(--accent) 22%, transparent);
 }
 
 .calendar__day[data-cursor='true'] {

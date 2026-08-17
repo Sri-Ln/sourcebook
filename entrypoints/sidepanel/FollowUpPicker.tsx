@@ -12,6 +12,35 @@ import {
 } from '../../lib/ui/calendarMonth.js';
 import { todayIso } from '../../lib/recruiters/followUp.js';
 
+/**
+ * The month-paging arrow.
+ *
+ * Drawn inside a square viewBox with the stroke centred in it, so the element's
+ * box and the visible mark share a centre. That is the whole reason this is an
+ * SVG: uniform padding around it is then genuinely uniform, with no per-side
+ * correction to maintain. `currentColor` keeps it on the button's own colour
+ * through hover and both themes.
+ */
+function Chevron({ flip = false }: { flip?: boolean }) {
+  return (
+    <svg
+      className={`calendar__chevron${flip ? ' calendar__chevron--flip' : ''}`}
+      viewBox="0 0 12 12"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M8 1 4 6l4 5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export interface FollowUpPickerProps {
   /** `YYYY-MM-DD`, or empty for no reminder. */
   value: string;
@@ -197,17 +226,24 @@ export function FollowUpPicker({ value, onChange, today = todayIso() }: FollowUp
           aria-labelledby={labelId}
         >
           <div className="calendar__head">
-            {/* The arrow is drawn in CSS rather than set as a "‹" glyph. That
-                character paints about 5px wide whatever its font-size, so making
-                it bigger only inflated the button around it. Borders on a
-                rotated box size exactly as told, and inherit currentColor. */}
+            {/*
+              An SVG rather than a "‹" glyph or a rotated bordered box.
+
+              The glyph paints about 5px wide whatever its font-size, so making
+              it bigger only inflated the button. The rotated box sized correctly
+              but could not be centred without fudging: its ink sits on two edges
+              of a square, so rotating leaves the mark off to one side and the
+              correction is an eyeballed nudge. Here the drawing is centred
+              inside its own square viewBox, so flex centring lands it exactly and
+              uniform padding really is uniform.
+            */}
             <button
               type="button"
-              className="calendar__page calendar__page--prev"
+              className="calendar__page"
               aria-label="Previous month"
               onClick={() => setCursor((current) => addMonths(current, -1))}
             >
-              <span className="calendar__chevron" aria-hidden="true" />
+              <Chevron />
             </button>
 
             {/* Announced on change so paging is audible, not just visible. */}
@@ -217,11 +253,11 @@ export function FollowUpPicker({ value, onChange, today = todayIso() }: FollowUp
 
             <button
               type="button"
-              className="calendar__page calendar__page--next"
+              className="calendar__page"
               aria-label="Next month"
               onClick={() => setCursor((current) => addMonths(current, 1))}
             >
-              <span className="calendar__chevron" aria-hidden="true" />
+              <Chevron flip />
             </button>
           </div>
 
