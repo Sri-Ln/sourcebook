@@ -6,6 +6,16 @@ This project follows [semantic versioning](https://semver.org/). Before 1.0 the 
 
 ## Unreleased
 
+## 0.2.1 — 2026-08-17
+
+### Fixed
+
+- **The follow-up calendar was almost entirely unstyled.** A rule meant for the edit form's Cancel and Update buttons — `.edit-form button[type='button']` — reached every button the form contains, which is all 42 calendar days, both month arrows, Clear, Done, the date trigger and the tag chips. Being a class plus a type plus an attribute, it outranked each component's own rules and flattened them to muted text on a transparent background inside a plain border.
+
+  So today had no indicator, the chosen date had no fill, and Done showed no colour on hover. Those rules were correct throughout 0.2.0 and were being silently overridden; the calendar rendered as a grid of empty boxes. The rule is now scoped to `.edit-form__actions`, which holds the two buttons it was written for.
+
+  Invisible to the test suite by construction: jsdom applies no cascade for these stylesheets, so every test passed with the calendar unstyled. Verification now drives the built `sidepanel.html` with a stubbed extension API, so what is measured is the shipped bundle and stylesheet in their real structure.
+
 ## 0.2.0 — 2026-08-17
 
 ### Changed
