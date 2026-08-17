@@ -87,7 +87,7 @@ describe('filterRecruiters', () => {
     const all = [
       recruiter({ outreach: 'not-contacted' }),
       recruiter({ outreach: 'messaged' }),
-      recruiter({ outreach: 'replied' }),
+      recruiter({ outreach: 'referred' }),
     ];
 
     it('filters to one status', () => {
@@ -100,7 +100,7 @@ describe('filterRecruiters', () => {
 
     it('filters to several statuses', () => {
       expect(
-        filterRecruiters(all, { ...EMPTY_FILTER, statuses: ['messaged', 'replied'] }),
+        filterRecruiters(all, { ...EMPTY_FILTER, statuses: ['messaged', 'referred'] }),
       ).toHaveLength(2);
     });
   });

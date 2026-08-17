@@ -15,13 +15,19 @@ export const SCHEMA_VERSION = 1;
  */
 export const NOTE_MAX_LENGTH = 300;
 
-export const OUTREACH_STATUSES = [
-  'not-contacted',
-  'messaged',
-  'replied',
-  'referred',
-  'closed',
-] as const;
+/**
+ * The statuses worth tracking, in the order outreach actually progresses.
+ *
+ * `replied` was here and was removed: it is a thing that happens to you rather
+ * than a thing you do, and it changed nothing about what to do next — you still
+ * either got the referral or you did not. Every state left is one you act on.
+ *
+ * **Adding a value is safe; removing one is not.** `parseRecruiter` validates
+ * against this list, so a record stored under a retired value fails validation
+ * and is quarantined: kept in storage, absent from the list. Removing `replied`
+ * was safe only because nothing was saved under it yet.
+ */
+export const OUTREACH_STATUSES = ['not-contacted', 'messaged', 'referred', 'closed'] as const;
 export type OutreachStatus = (typeof OUTREACH_STATUSES)[number];
 
 export const SOURCE_TYPES = ['profile', 'post', 'search', 'manual'] as const;
