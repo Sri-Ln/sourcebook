@@ -26,3 +26,23 @@ if (typeof HTMLElement !== 'undefined' && !HTMLElement.prototype.showPopover) {
     this.style.display = '';
   };
 }
+
+/**
+ * `<dialog>` has the same gap: jsdom parses the element and honours the `open`
+ * attribute, but implements neither `showModal` nor `close`.
+ *
+ * Shimmed to the attribute rather than left absent, because the component
+ * feature-detects `showModal` — without this the tests would exercise the
+ * fallback path and never the one that ships. The modal guarantees themselves
+ * (backdrop, focus trap, inert background) are the browser's and cannot be
+ * asserted here; they belong to manual checking.
+ */
+if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.showModal) {
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+    this.setAttribute('open', '');
+  };
+  HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+    this.removeAttribute('open');
+    this.dispatchEvent(new Event('close'));
+  };
+}

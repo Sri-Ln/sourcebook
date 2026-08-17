@@ -30,6 +30,12 @@
 
   /* Text drawn on top of the accent colour. */
   --on-accent: oklch(0.99 0 0);
+
+  /* Destructive actions only, and there is exactly one. Held dark enough in both
+     themes to carry white text at 4.5:1, rather than lightening with the accent
+     — a red that goes pale in dark mode stops reading as a warning. */
+  --danger: oklch(0.505 0.175 25);
+
   --shadow: oklch(0.2 0 0 / 0.05);
   --shadow-menu: oklch(0.2 0 0 / 0.18);
 
@@ -73,6 +79,11 @@
     --status-closed: oklch(0.60 0.008 265);
 
     --on-accent: oklch(0.16 0.01 265);
+
+    /* Lifted just enough to separate from the dark surface, still dark enough
+       for the white label on top of it. */
+    --danger: oklch(0.55 0.185 25);
+
     --shadow: oklch(0 0 0 / 0.3);
     --shadow-menu: oklch(0 0 0 / 0.55);
   }
@@ -576,9 +587,356 @@ button.status[aria-expanded='true'] .status__caret {
   gap: 0.375rem;
 }
 
-.field__row input[type='date'] {
+/* Matches the `.field > span` label, for the one field whose control is not a
+   form element and so cannot be wrapped in a <label>. */
+.edit-form .field__label {
+  font-size: 0.625rem;
+  font-weight: 550;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+}
+
+/* ---------- Follow-up date ---------- */
+
+/* Shaped like the text inputs above it, so the row reads as one form rather
+   than a form with a button in it. */
+.datepick {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  width: 100%;
+  padding: 0.3125rem 0.4375rem;
+  font: inherit;
+  font-size: 0.75rem;
+  text-align: left;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  cursor: pointer;
+  transition:
+    border-color var(--fast) var(--ease),
+    box-shadow var(--fast) var(--ease);
+}
+
+.datepick:hover {
+  border-color: var(--line-strong);
+}
+
+.datepick:focus-visible,
+.datepick[aria-expanded='true'] {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 22%, transparent);
+}
+
+.datepick__value {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Empty reads as placeholder text, matching the inputs, so an unset date looks
+   unset rather than like a value someone chose. */
+.datepick--empty .datepick__value {
+  color: color-mix(in oklch, var(--muted) 75%, transparent);
+}
+
+/* A calendar drawn in CSS: two lines and a spine. Cheaper than an icon font and
+   it inherits currentColor, so it follows the theme for free. */
+.datepick__icon {
+  position: relative;
+  flex-shrink: 0;
+  width: 11px;
+  height: 11px;
+  border: 1.25px solid var(--muted);
+  border-radius: 2px;
+}
+
+.datepick__icon::before {
+  content: '';
+  position: absolute;
+  inset: -3px 2px auto 2px;
+  height: 3px;
+  border-left: 1.25px solid var(--muted);
+  border-right: 1.25px solid var(--muted);
+}
+
+.datepick__icon::after {
+  content: '';
+  position: absolute;
+  inset: 2.5px 1.5px auto 1.5px;
+  border-top: 1.25px solid var(--muted);
+}
+
+.calendar {
+  position: fixed;
+  margin: 0;
+  padding: 0.5rem;
+  width: 15.5rem;
+  color: var(--ink);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 20px var(--shadow-menu);
+  animation: calendar-in 110ms var(--ease);
+}
+
+@keyframes calendar-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
+.calendar__head {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.375rem;
+}
+
+.calendar__month {
+  flex: 1;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.calendar__page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition:
+    color var(--fast) var(--ease),
+    background-color var(--fast) var(--ease);
+}
+
+.calendar__page:hover {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.calendar__page:focus-visible {
+  outline: none;
+  color: var(--ink);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 35%, transparent);
+}
+
+.calendar__week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+}
+
+.calendar__weekday {
+  padding-bottom: 0.1875rem;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  color: var(--muted);
+}
+
+.calendar__day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  transition:
+    color var(--fast) var(--ease),
+    background-color var(--fast) var(--ease);
+}
+
+/* Dimmed, not hidden. They are still real dates you can pick, which is how you
+   reach the 1st of next month without paging. */
+.calendar__day[data-outside='true'] {
+  color: color-mix(in oklch, var(--muted) 55%, transparent);
+}
+
+.calendar__day:hover {
+  background: var(--surface);
+}
+
+.calendar__day:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 22%, transparent);
+}
+
+/* Today is outlined, the selection is filled. Two different questions, so two
+   different marks rather than two shades of one. */
+.calendar__day[data-today='true'] {
+  border-color: var(--line-strong);
+  font-weight: 650;
+}
+
+.calendar__day[aria-selected='true'] {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 650;
+}
+
+.calendar__day[aria-selected='true']:hover {
+  background: color-mix(in oklch, var(--accent) 88%, var(--ink));
+}
+
+.calendar__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.4375rem;
+  padding-top: 0.4375rem;
+  border-top: 1px solid var(--line);
+}
+
+.calendar__foot .link:disabled {
+  opacity: 0.4;
+  cursor: default;
+  text-decoration: none;
+}
+
+.calendar__done {
+  padding: 0.1875rem 0.5625rem;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 550;
+  color: var(--on-accent);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.calendar__done:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 40%, transparent);
+}
+
+/* ---------- Confirm dialog ---------- */
+
+/* In the top layer via showModal, so no z-index is needed and nothing in the
+   scrolling list can clip it. */
+.confirm {
+  width: min(17rem, calc(100vw - 2rem));
+  margin: auto;
+  padding: 0.875rem;
+  color: var(--ink);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 30px var(--shadow-menu);
+  animation: confirm-in 140ms var(--ease);
+}
+
+.confirm::backdrop {
+  background: oklch(0.2 0 0 / 0.42);
+  animation: confirm-backdrop-in 140ms var(--ease);
+}
+
+@keyframes confirm-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@keyframes confirm-backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* A confirmation appears because of something you just did, so it does not need
+   to animate in to be noticed. */
+@media (prefers-reduced-motion: reduce) {
+  .confirm,
+  .confirm::backdrop,
+  .calendar {
+    animation: none;
+  }
+}
+
+.confirm__title {
+  margin: 0 0 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  text-wrap: balance;
+}
+
+.confirm__body {
+  margin: 0 0 0.75rem;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.confirm__actions {
+  display: flex;
+  gap: 0.375rem;
+  justify-content: flex-end;
+}
+
+.confirm__actions button {
+  padding: 0.25rem 0.625rem;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 550;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  cursor: pointer;
+  transition:
+    background-color var(--fast) var(--ease),
+    border-color var(--fast) var(--ease);
+}
+
+.confirm__actions button:hover {
+  border-color: var(--line-strong);
+}
+
+.confirm__actions button:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 25%, transparent);
+}
+
+/* The destructive action carries the weight. Colour alone would not survive
+   colour-blind vision, so it is filled and bolder as well as red. */
+.confirm__danger {
+  color: oklch(0.99 0 0);
+  background: var(--danger);
+  border-color: var(--danger);
+  font-weight: 600;
+}
+
+.confirm__danger:hover {
+  background: color-mix(in oklch, var(--danger) 88%, black);
+  border-color: color-mix(in oklch, var(--danger) 88%, black);
 }
 
 .edit-form__actions {

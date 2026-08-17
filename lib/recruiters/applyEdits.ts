@@ -1,14 +1,27 @@
 import type { Recruiter } from '../models/types.js';
-import type { SavePanelValues } from '../ui/savePanel.js';
+
+/**
+ * What the edit form collects.
+ *
+ * Four fields, where there were seven. Name, headline and provenance were
+ * dropped from the form as noise; they still live on the record and are carried
+ * through untouched by {@link applyEdits}.
+ *
+ * Declared here rather than beside the form so nothing in `lib/` has to depend
+ * on a component to describe a record's own editable shape.
+ */
+export interface EditValues {
+  company: string;
+  note: string;
+  tags: string[];
+  /** `YYYY-MM-DD`, or empty for no reminder. */
+  followUpAt: string;
+}
 
 /** Seeds the edit form from a saved record. */
-export function toPanelValues(recruiter: Recruiter): Partial<SavePanelValues> {
+export function toEditValues(recruiter: Recruiter): EditValues {
   return {
-    name: recruiter.name,
-    headline: recruiter.headline ?? '',
     company: recruiter.company ?? '',
-    sourceType: recruiter.source.type,
-    sourceUrl: recruiter.source.url ?? '',
     note: recruiter.note ?? '',
     tags: recruiter.tags,
     followUpAt: recruiter.followUpAt ?? '',
@@ -23,41 +36,35 @@ export function toPanelValues(recruiter: Recruiter): Partial<SavePanelValues> {
  * record from the person it describes, or silently create a duplicate that the
  * dedupe check would no longer catch.
  *
- * A field cleared to blank is **omitted entirely** rather than stored as an
- * empty string. "Not known" stays distinguishable from "known to be empty", and
- * an empty string would otherwise spend sync quota to say nothing.
+ * `name`, `headline` and `source` are preserved for a different reason: the form
+ * stopped offering them, so it has nothing to say about them. Passing them
+ * through the same "blank means omit" rule as the editable fields would delete a
+ * headline every time someone fixed a typo in a note.
+ *
+ * Among the fields it does own, one cleared to blank is **omitted entirely**
+ * rather than stored as an empty string. "Not known" stays distinguishable from
+ * "known to be empty", and an empty string would otherwise spend sync quota to
+ * say nothing.
  */
 export function applyEdits(
   recruiter: Recruiter,
-  values: SavePanelValues,
+  values: EditValues,
   now = new Date(),
 ): Recruiter {
-  const headline = values.headline.trim();
   const company = values.company.trim();
   const note = values.note.trim();
-  const sourceUrl = values.sourceUrl.trim();
   const followUpAt = values.followUpAt.trim();
-
-  // A link only means something for a source that has one. Keeping a stale post
-  // URL against "their profile" would be a quiet lie about where someone came
-  // from — which is the one thing this field exists to record.
-  const keepsUrl = values.sourceType !== 'profile' && values.sourceType !== 'manual';
 
   return {
     id: recruiter.id,
     schemaVersion: recruiter.schemaVersion,
-    // Empty falls back rather than wiping: a record with no name is unusable,
-    // and the form already refuses to submit one.
-    name: values.name.trim() || recruiter.name,
+    name: recruiter.name,
     profileUrl: recruiter.profileUrl,
     ...(recruiter.memberId ? { memberId: recruiter.memberId } : {}),
-    ...(headline ? { headline } : {}),
+    ...(recruiter.headline ? { headline: recruiter.headline } : {}),
     ...(company ? { company } : {}),
     outreach: recruiter.outreach,
-    source: {
-      type: values.sourceType,
-      ...(sourceUrl && keepsUrl ? { url: sourceUrl } : {}),
-    },
+    source: recruiter.source,
     tags: [...new Set(values.tags.map((tag) => tag.trim()).filter(Boolean))],
     ...(note ? { note } : {}),
     ...(followUpAt ? { followUpAt } : {}),
