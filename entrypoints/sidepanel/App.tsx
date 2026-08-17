@@ -4,13 +4,12 @@ import { recruiterClient } from '../../lib/messaging/client.js';
 import type { OutreachStatus, Recruiter } from '../../lib/models/types.js';
 import {
   EMPTY_FILTER,
-  collectTags,
   filterRecruiters,
   isFiltering,
   type RecruiterFilter,
 } from '../../lib/recruiters/filter.js';
 import { filterStore } from '../../lib/recruiters/filterStore.js';
-import { rankTags } from '../../lib/recruiters/tagSuggestions.js';
+import { filterChipTags, rankTags } from '../../lib/recruiters/tagSuggestions.js';
 import { isScheduled } from '../../lib/recruiters/followUp.js';
 import { watchRecruiters } from '../../lib/storage/watchRecruiters.js';
 import { hasReminderPermission, requestReminderPermission } from '../../lib/messaging/notifications.js';
@@ -92,11 +91,19 @@ export default function App() {
   }, [load]);
 
   const all = state.status === 'ready' ? state.recruiters : [];
-  const tags = useMemo(() => collectTags(all), [all]);
 
   // Ranked over every record rather than the filtered view: the tags worth
   // suggesting are the ones you use, not the ones matching the current filter.
   const rankedTags = useMemo(() => rankTags(all), [all]);
+
+  // Only the few most-used get a chip. The row used to grow with the
+  // collection, which turned a filter bar into a tag inventory; the search box
+  // already reaches anything rarer. Active filters are always kept, or one
+  // would be impossible to switch off.
+  const chipTags = useMemo(
+    () => filterChipTags({ ranked: rankedTags, selected: filter.tags }),
+    [rankedTags, filter.tags],
+  );
 
   // Memoised so typing filters in place rather than refetching. At the sync
   // quota's ceiling of roughly two hundred records this is trivially fast, and
@@ -137,7 +144,7 @@ export default function App() {
 
       {state.status === 'ready' && state.recruiters.length > 0 ? (
         <>
-          <Filters filter={filter} tags={tags} onChange={changeFilter} />
+          <Filters filter={filter} tags={chipTags} onChange={changeFilter} />
 
           <ReminderOptIn
             hasScheduled={all.some(isScheduled)}

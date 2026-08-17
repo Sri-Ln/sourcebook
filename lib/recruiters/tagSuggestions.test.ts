@@ -4,6 +4,7 @@ import {
   MATCH_LIMIT,
   RESTING_LIMIT,
   activeFragment,
+  filterChipTags,
   rankTags,
   suggestTags,
   withTag,
@@ -157,6 +158,62 @@ describe('suggestTags', () => {
 
   it('offers nothing when every tag is already applied', () => {
     expect(suggestTags({ ranked, applied: ranked, fragment: '' })).toEqual([]);
+  });
+});
+
+describe('filterChipTags', () => {
+  const ranked = ['fintech', 'backend', 'seed-stage', 'sponsors-h1b', 'warm-intro'];
+
+  it('caps the row at three', () => {
+    // The row used to grow with the collection: twenty tags meant twenty chips
+    // above a list of four people.
+    expect(filterChipTags({ ranked, selected: [] })).toEqual([
+      'fintech',
+      'backend',
+      'seed-stage',
+    ]);
+  });
+
+  it('offers nothing before any tags exist', () => {
+    expect(filterChipTags({ ranked: [], selected: [] })).toEqual([]);
+  });
+
+  it('shows fewer than three when that is all there is', () => {
+    expect(filterChipTags({ ranked: ['solo'], selected: [] })).toEqual(['solo']);
+  });
+
+  it('keeps a selected tag that falls outside the top three', () => {
+    const shown = filterChipTags({ ranked, selected: ['warm-intro'] });
+
+    // Dropping it would leave a filter applied with no way to switch it off, and
+    // the list would look broken with no explanation.
+    expect(shown).toContain('warm-intro');
+    expect(shown).toEqual(['fintech', 'backend', 'seed-stage', 'warm-intro']);
+  });
+
+  it('does not duplicate a selected tag already in the top three', () => {
+    expect(filterChipTags({ ranked, selected: ['backend'] })).toEqual([
+      'fintech',
+      'backend',
+      'seed-stage',
+    ]);
+  });
+
+  it('matches selection case-insensitively when deciding on duplicates', () => {
+    expect(filterChipTags({ ranked, selected: ['BackEnd'] })).toHaveLength(3);
+  });
+
+  it('keeps the top three in place when a held tag is appended', () => {
+    const shown = filterChipTags({ ranked, selected: ['warm-intro', 'sponsors-h1b'] });
+
+    // Appended rather than merged, so the row does not reshuffle as filters go
+    // on and off.
+    expect(shown.slice(0, 3)).toEqual(['fintech', 'backend', 'seed-stage']);
+    expect(shown.slice(3).sort()).toEqual(['sponsors-h1b', 'warm-intro']);
+  });
+
+  it('honours a different limit', () => {
+    expect(filterChipTags({ ranked, selected: [], limit: 1 })).toEqual(['fintech']);
   });
 });
 

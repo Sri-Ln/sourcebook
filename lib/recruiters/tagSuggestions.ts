@@ -15,6 +15,9 @@ export const RESTING_LIMIT = 3;
 /** How many matches to offer while typing, where the list is doing real work. */
 export const MATCH_LIMIT = 6;
 
+/** How many tags get a filter chip. The row grew without limit before this. */
+export const FILTER_CHIP_LIMIT = 3;
+
 /**
  * Every tag in use, most-used first.
  *
@@ -107,6 +110,38 @@ export function suggestTags({
   );
 
   return [...prefix, ...contains].slice(0, matchLimit);
+}
+
+/**
+ * Which tags get a filter chip.
+ *
+ * Capped, because the row previously grew with the collection: every tag ever
+ * used earned a permanent chip, so twenty tags meant twenty chips above a list
+ * of four people. Filters are for the handful of cuts you actually take, and the
+ * search box already reaches anything rarer.
+ *
+ * Anything currently switched on is always included, even when it falls outside
+ * the top few. Dropping a selected chip would leave a filter applied with no
+ * visible way to turn it off, and the list would look broken with no
+ * explanation.
+ */
+export function filterChipTags({
+  ranked,
+  selected,
+  limit = FILTER_CHIP_LIMIT,
+}: {
+  ranked: readonly string[];
+  selected: readonly string[];
+  limit?: number;
+}): string[] {
+  const top = ranked.slice(0, limit);
+  const shown = new Set(top.map((tag) => tag.toLowerCase()));
+
+  // Appended rather than merged, so the top few keep their positions and the row
+  // does not reshuffle as filters go on and off.
+  const held = selected.filter((tag) => tag && !shown.has(tag.toLowerCase()));
+
+  return [...top, ...held];
 }
 
 /**
