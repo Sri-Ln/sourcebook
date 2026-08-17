@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SCHEMA_VERSION, type Recruiter } from '../models/types.js';
-import type { SavePanelValues } from '../ui/savePanel.js';
-import { applyEdits, toPanelValues } from './applyEdits.js';
+import { applyEdits, toEditValues, type EditValues } from './applyEdits.js';
 
 function recruiter(overrides: Partial<Recruiter> = {}): Recruiter {
   return {
@@ -22,13 +21,9 @@ function recruiter(overrides: Partial<Recruiter> = {}): Recruiter {
   };
 }
 
-function values(overrides: Partial<SavePanelValues> = {}): SavePanelValues {
+function values(overrides: Partial<EditValues> = {}): EditValues {
   return {
-    name: 'Jane Placeholder',
-    headline: 'Technical Recruiter',
     company: 'Stripe',
-    sourceType: 'profile',
-    sourceUrl: '',
     note: 'Original note',
     tags: ['fintech'],
     followUpAt: '',
@@ -38,26 +33,25 @@ function values(overrides: Partial<SavePanelValues> = {}): SavePanelValues {
 
 const LATER = new Date('2026-09-01T12:00:00.000Z');
 
-describe('toPanelValues', () => {
-  it('seeds every editable field from the record', () => {
-    expect(toPanelValues(recruiter())).toMatchObject({
-      name: 'Jane Placeholder',
-      headline: 'Technical Recruiter',
+describe('toEditValues', () => {
+  it('seeds the four editable fields from the record', () => {
+    expect(toEditValues(recruiter())).toEqual({
       company: 'Stripe',
       note: 'Original note',
       tags: ['fintech'],
-      sourceType: 'profile',
+      followUpAt: '',
     });
   });
 
   it('turns missing optional fields into blanks the form can render', () => {
-    const seeded = toPanelValues(
-      recruiter({ headline: undefined, company: undefined, note: undefined }),
-    );
+    const seeded = toEditValues(recruiter({ company: undefined, note: undefined }));
 
-    expect(seeded.headline).toBe('');
     expect(seeded.company).toBe('');
     expect(seeded.note).toBe('');
+  });
+
+  it('carries an existing follow-up date through', () => {
+    expect(toEditValues(recruiter({ followUpAt: '2026-09-15' })).followUpAt).toBe('2026-09-15');
   });
 });
 
@@ -81,42 +75,55 @@ describe('applyEdits', () => {
   });
 
   it('corrects a company the extractor guessed wrong', () => {
-    // Extraction reads the line below the headline, which is a school for
-    // anyone with no current employer. This is the fix for that.
+    // The one extracted field still worth editing: company is the axis the list
+    // is grouped by, so a wrong one files someone where you cannot find them.
     const updated = applyEdits(recruiter(), values({ company: 'Postman' }));
 
     expect(updated.company).toBe('Postman');
   });
 
-  it('records that someone was found through a post', () => {
-    const updated = applyEdits(
-      recruiter(),
-      values({ sourceType: 'post', sourceUrl: 'https://www.linkedin.com/posts/abc' }),
-    );
-
-    expect(updated.source).toEqual({
-      type: 'post',
-      url: 'https://www.linkedin.com/posts/abc',
+  /**
+   * The form stopped offering these, so it has nothing to say about them.
+   *
+   * This is the failure mode the change had to avoid: run them through the same
+   * "blank means omit" rule as the editable fields and every note correction
+   * would silently delete a headline.
+   */
+  describe('fields the form no longer offers', () => {
+    it('preserves the name', () => {
+      expect(applyEdits(recruiter(), values()).name).toBe('Jane Placeholder');
     });
-  });
 
-  it('drops a source link that no longer applies', () => {
-    const saved = recruiter({ source: { type: 'post', url: 'https://example.com/post' } });
+    it('preserves the headline', () => {
+      expect(applyEdits(recruiter(), values()).headline).toBe('Technical Recruiter');
+    });
 
-    const updated = applyEdits(saved, values({ sourceType: 'profile', sourceUrl: '' }));
+    it('preserves the headline even when only the note changed', () => {
+      const updated = applyEdits(recruiter(), values({ note: 'Something new' }));
 
-    // Keeping a stale post URL against "their profile" would be a quiet lie
-    // about where someone came from.
-    expect(updated.source).toEqual({ type: 'profile' });
-  });
+      expect(updated.headline).toBe('Technical Recruiter');
+    });
 
-  describe('clearing a field', () => {
-    it('omits a cleared headline rather than storing an empty string', () => {
-      const updated = applyEdits(recruiter(), values({ headline: '   ' }));
+    it('preserves a source that carries a link', () => {
+      const found = recruiter({ source: { type: 'post', url: 'https://example.com/post' } });
+
+      const updated = applyEdits(found, values({ note: 'changed' }));
+
+      expect(updated.source).toEqual({ type: 'post', url: 'https://example.com/post' });
+    });
+
+    it('preserves a bare source type', () => {
+      expect(applyEdits(recruiter(), values()).source).toEqual({ type: 'profile' });
+    });
+
+    it('does not invent a headline for a record that never had one', () => {
+      const updated = applyEdits(recruiter({ headline: undefined }), values());
 
       expect('headline' in updated).toBe(false);
     });
+  });
 
+  describe('clearing a field', () => {
     it('omits a cleared note', () => {
       const updated = applyEdits(recruiter(), values({ note: '' }));
 
@@ -128,13 +135,19 @@ describe('applyEdits', () => {
 
       expect('company' in updated).toBe(false);
     });
+
+    it('omits a company cleared to whitespace', () => {
+      const updated = applyEdits(recruiter(), values({ company: '   ' }));
+
+      expect('company' in updated).toBe(false);
+    });
   });
 
   describe('identity is preserved', () => {
     it('keeps id, profileUrl, memberId and savedAt', () => {
       const original = recruiter();
 
-      const updated = applyEdits(original, values({ name: 'Renamed Person' }), LATER);
+      const updated = applyEdits(original, values({ note: 'changed' }), LATER);
 
       // Changing any of these would orphan the record from the person it
       // describes, or create a duplicate dedupe could no longer catch.
@@ -146,10 +159,6 @@ describe('applyEdits', () => {
 
     it('keeps outreach status, which is edited elsewhere', () => {
       expect(applyEdits(recruiter({ outreach: 'replied' }), values()).outreach).toBe('replied');
-    });
-
-    it('falls back to the stored name rather than wiping it', () => {
-      expect(applyEdits(recruiter(), values({ name: '   ' })).name).toBe('Jane Placeholder');
     });
 
     it('does not invent a memberId for a record that never had one', () => {
