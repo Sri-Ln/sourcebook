@@ -10,6 +10,7 @@ import {
   type RecruiterFilter,
 } from '../../lib/recruiters/filter.js';
 import { filterStore } from '../../lib/recruiters/filterStore.js';
+import { rankTags } from '../../lib/recruiters/tagSuggestions.js';
 import { isScheduled } from '../../lib/recruiters/followUp.js';
 import { watchRecruiters } from '../../lib/storage/watchRecruiters.js';
 import { hasReminderPermission, requestReminderPermission } from '../../lib/messaging/notifications.js';
@@ -93,6 +94,10 @@ export default function App() {
   const all = state.status === 'ready' ? state.recruiters : [];
   const tags = useMemo(() => collectTags(all), [all]);
 
+  // Ranked over every record rather than the filtered view: the tags worth
+  // suggesting are the ones you use, not the ones matching the current filter.
+  const rankedTags = useMemo(() => rankTags(all), [all]);
+
   // Memoised so typing filters in place rather than refetching. At the sync
   // quota's ceiling of roughly two hundred records this is trivially fast, and
   // there is no backend to ask.
@@ -151,6 +156,7 @@ export default function App() {
             <RecruiterGroups
               recruiters={visible}
               overflowedIds={state.overflowedIds}
+              tagSuggestions={rankedTags}
               editingId={editingId}
               onStatusChange={(recruiter, outreach) => void changeStatus(recruiter, outreach)}
               onRemove={(id) => void remove(id)}

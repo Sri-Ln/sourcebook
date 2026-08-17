@@ -1,10 +1,17 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { NOTE_MAX_LENGTH, type Recruiter } from '../../lib/models/types.js';
 import { applyEdits, toEditValues, type EditValues } from '../../lib/recruiters/applyEdits.js';
+import { activeFragment, suggestTags, withTag } from '../../lib/recruiters/tagSuggestions.js';
 import { FollowUpPicker } from './FollowUpPicker.js';
 
 export interface EditPanelProps {
   recruiter: Recruiter;
+  /**
+   * Every tag in use, most-used first, from {@link rankTags}. Passed in rather
+   * than derived here because it is drawn from the whole collection, not from
+   * the one record being edited.
+   */
+  tagSuggestions?: readonly string[];
   onSave: (updated: Recruiter) => Promise<void>;
   onCancel: () => void;
 }
@@ -27,14 +34,54 @@ export interface EditPanelProps {
  * cursor and month state, and reporting a save failure by reaching in with
  * `querySelector('.error')` was already the seam of the old approach showing.
  */
-export function EditPanel({ recruiter, onSave, onCancel }: EditPanelProps) {
+export function EditPanel({
+  recruiter,
+  tagSuggestions = [],
+  onSave,
+  onCancel,
+}: EditPanelProps) {
   const [values, setValues] = useState<EditValues>(() => toEditValues(recruiter));
-  const [tagText, setTagText] = useState(() => recruiter.tags.join(', '));
+  /**
+   * Seeded with a trailing separator when there are tags already.
+   *
+   * Without it the field opens as "fintech, backend" and `activeFragment` reads
+   * "backend" — so the suggestion row starts in matching mode against the tag
+   * this person already has, and offers nothing. The separator also means the
+   * next tag can be typed immediately. Empty entries are dropped on save.
+   */
+  const [tagText, setTagText] = useState(() =>
+    recruiter.tags.length > 0 ? `${recruiter.tags.join(', ')}, ` : '',
+  );
   const [error, setError] = useState<string | undefined>(undefined);
   const [saving, setSaving] = useState(false);
 
+  /**
+   * Three at rest, more once you start typing.
+   *
+   * The resting row is a shortcut, and a shortcut with twenty options in it is
+   * just a list. Typing switches it to matches drawn from every tag you have
+   * used, which is how the ones outside the top three stay reachable.
+   */
+  const fragment = activeFragment(tagText);
+  const suggestions = useMemo(
+    () => suggestTags({ ranked: tagSuggestions, applied: values.tags, fragment }),
+    [tagSuggestions, values.tags, fragment],
+  );
+
   const set = <K extends keyof EditValues>(key: K, next: EditValues[K]) =>
     setValues((current) => ({ ...current, [key]: next }));
+
+  /** The field's text is what you typed; `values.tags` is what will be saved. */
+  const setTags = (text: string) => {
+    setTagText(text);
+    set(
+      'tags',
+      text
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    );
+  };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -97,18 +144,34 @@ export function EditPanel({ recruiter, onSave, onCancel }: EditPanelProps) {
             value={tagText}
             // Split on save, not per keystroke, so a half-typed tag is not
             // repeatedly torn apart while you type it.
-            onChange={(event) => {
-              setTagText(event.target.value);
-              set(
-                'tags',
-                event.target.value
-                  .split(',')
-                  .map((tag) => tag.trim())
-                  .filter(Boolean),
-              );
-            }}
+            onChange={(event) => setTags(event.target.value)}
           />
         </label>
+
+        {/* Outside the label, because a label may only name one control and
+            these are buttons in their own right. Absent entirely until there is
+            something to suggest, so a first-time panel shows no empty row. */}
+        {suggestions.length > 0 ? (
+          <div
+            className="tag-suggest"
+            role="group"
+            aria-label={fragment ? `Tags matching ${fragment}` : 'Most used tags'}
+          >
+            {suggestions.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                className="tag-suggest__chip"
+                // Named for what pressing it does, since "fintech" alone does
+                // not say that out loud.
+                aria-label={`Add tag ${tag}`}
+                onClick={() => setTags(withTag(tagText, tag))}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         <div className="field">
           <span className="field__label">Follow up on</span>

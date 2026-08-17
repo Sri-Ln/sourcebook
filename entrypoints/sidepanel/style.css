@@ -582,6 +582,60 @@ button.status[aria-expanded='true'] .status__caret {
   gap: 0.375rem;
 }
 
+/* ---------- Tag suggestions ---------- */
+
+/*
+ * Sits directly under the Tags field, pulled up tight so it reads as belonging
+ * to it rather than as a row of its own.
+ *
+ * Quieter than the filter chips on purpose. Those are controls you go looking
+ * for; these are an offer you can ignore, and they must not compete with the
+ * field they sit beneath.
+ */
+.tag-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: -0.25rem;
+}
+
+/*
+ * Scoped through two ancestors, which looks like overkill and is not.
+ *
+ * `.edit-form button[type='button']` further down is a class, a type and an
+ * attribute, and it beats a lone class however late this appears in the file —
+ * it was silently supplying a solid `--line` border and its own font size. Three
+ * class-level selectors clear it. This is the third rule in this stylesheet to
+ * lose that argument, so it is worth stating rather than rediscovering.
+ */
+.edit-form .tag-suggest .tag-suggest__chip {
+  padding: 0.0625rem 0.375rem;
+  font: inherit;
+  font-size: 0.625rem;
+  font-weight: 450;
+  color: var(--muted);
+  background: transparent;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition:
+    color var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    background-color var(--fast) var(--ease);
+}
+
+/* Dashed until you commit to it, solid once it is yours. Border style carries
+   the change that colour would otherwise have to, which keeps the row quiet
+   next to the field it belongs to. */
+.edit-form .tag-suggest .tag-suggest__chip:hover,
+.edit-form .tag-suggest .tag-suggest__chip:focus-visible {
+  outline: none;
+  color: var(--ink);
+  background: var(--surface);
+  border-style: solid;
+  border-color: var(--accent);
+}
+
 /* Matches the `.field > span` label, for the one field whose control is not a
    form element and so cannot be wrapped in a <label>. */
 .edit-form .field__label {
