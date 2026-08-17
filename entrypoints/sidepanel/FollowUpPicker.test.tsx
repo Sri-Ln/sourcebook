@@ -77,6 +77,28 @@ describe('FollowUpPicker', () => {
       expect(screen.getByText(/September 2026/)).toBeDefined();
     });
 
+    it('parks the keyboard on today when nothing is chosen', async () => {
+      setup();
+      await open();
+
+      // So the calendar opens ready to move out from today, and Enter alone
+      // picks it. Today is also washed in accent, which is what makes the
+      // starting point visible rather than merely true.
+      await waitFor(() => expect(day(TODAY)).toHaveAttribute('data-cursor', 'true'));
+      expect(day(TODAY)).toHaveAttribute('aria-current', 'date');
+    });
+
+    it('marks today even when another date is chosen', async () => {
+      setup('2026-09-20');
+      await open();
+
+      // Two questions, two marks: today stays identifiable while the selection
+      // is elsewhere.
+      expect(day(TODAY)).toHaveAttribute('aria-current', 'date');
+      expect(day('2026-09-20')).toHaveAttribute('aria-selected', 'true');
+      expect(day('2026-09-20')).toHaveAttribute('data-cursor', 'true');
+    });
+
     it('marks today, distinctly from the selection', async () => {
       setup('2026-09-20');
       await open();

@@ -240,7 +240,7 @@ describe('side panel', () => {
       render(<App />);
       await screen.findByText('Jane Placeholder');
 
-      await chooseStatus('Jane Placeholder', 'Replied');
+      await chooseStatus('Jane Placeholder', 'Referred');
 
       await waitFor(() => expect(save).toHaveBeenCalled());
       const [saved] = save.mock.calls[0] as [Recruiter];

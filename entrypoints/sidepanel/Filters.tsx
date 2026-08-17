@@ -4,7 +4,6 @@ import type { RecruiterFilter } from '../../lib/recruiters/filter.js';
 export const OUTREACH_LABELS: Record<OutreachStatus, string> = {
   'not-contacted': 'Not contacted',
   messaged: 'Messaged',
-  replied: 'Replied',
   referred: 'Referred',
   closed: 'Closed',
 };

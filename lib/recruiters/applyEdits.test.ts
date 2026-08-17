@@ -158,7 +158,7 @@ describe('applyEdits', () => {
     });
 
     it('keeps outreach status, which is edited elsewhere', () => {
-      expect(applyEdits(recruiter({ outreach: 'replied' }), values()).outreach).toBe('replied');
+      expect(applyEdits(recruiter({ outreach: 'referred' }), values()).outreach).toBe('referred');
     });
 
     it('does not invent a memberId for a record that never had one', () => {

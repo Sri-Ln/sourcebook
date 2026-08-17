@@ -9,6 +9,8 @@ import { StatusMenu } from './StatusMenu.js';
 export interface RecruiterGroupsProps {
   recruiters: Recruiter[];
   overflowedIds: string[];
+  /** Every tag in use, most-used first. Forwarded to the edit form. */
+  tagSuggestions?: readonly string[];
   editingId?: string | undefined;
   onStatusChange: (recruiter: Recruiter, outreach: OutreachStatus) => void;
   onRemove: (id: string) => void;
@@ -30,6 +32,7 @@ export interface RecruiterGroupsProps {
 export function RecruiterGroups({
   recruiters,
   overflowedIds,
+  tagSuggestions,
   editingId,
   onStatusChange,
   onRemove,
@@ -127,6 +130,7 @@ export function RecruiterGroups({
                 {editingId === recruiter.id ? (
                   <EditPanel
                     recruiter={recruiter}
+                    tagSuggestions={tagSuggestions}
                     onSave={onSaveEdit}
                     onCancel={() => onEdit(undefined)}
                   />

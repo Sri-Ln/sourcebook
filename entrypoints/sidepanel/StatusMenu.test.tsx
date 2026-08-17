@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { OUTREACH_STATUSES } from '../../lib/models/types.js';
 import { StatusMenu } from './StatusMenu.js';
 
 function setup(value: Parameters<typeof StatusMenu>[0]['value'] = 'not-contacted') {
@@ -32,15 +33,15 @@ describe('StatusMenu', () => {
     await userEvent.click(trigger());
 
     expect(await screen.findByRole('listbox')).toBeDefined();
-    expect(screen.getAllByRole('option')).toHaveLength(5);
+    expect(screen.getAllByRole('option')).toHaveLength(OUTREACH_STATUSES.length);
   });
 
   it('marks the current status as selected', async () => {
-    setup('replied');
+    setup('referred');
 
     await userEvent.click(trigger());
 
-    expect(await screen.findByRole('option', { name: 'Replied' })).toHaveAttribute(
+    expect(await screen.findByRole('option', { name: 'Referred' })).toHaveAttribute(
       'aria-selected',
       'true',
     );
