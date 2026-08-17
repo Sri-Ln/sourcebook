@@ -16,6 +16,8 @@ This project follows [semantic versioning](https://semver.org/). Before 1.0 the 
 
   Invisible to the test suite by construction: jsdom applies no cascade for these stylesheets, so every test passed with the calendar unstyled. Verification now drives the built `sidepanel.html` with a stubbed extension API, so what is measured is the shipped bundle and stylesheet in their real structure.
 
+- **The calendar's Done button is solid accent from the start**, rather than a dark neutral that only took colour on hover, and its label is flex-centred instead of placed by padding and the font's own metrics. Hover lifts it with a brightness change, matching Update and the save button, instead of switching the fill to green.
+
 ## 0.2.0 — 2026-08-17
 
 ### Changed
