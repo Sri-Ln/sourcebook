@@ -890,13 +890,13 @@ button.status[aria-expanded='true'] .status__caret {
  */
 .calendar__day[data-today='true'] {
   color: var(--accent);
-  background: color-mix(in oklch, var(--accent) 14%, transparent);
-  border-color: color-mix(in oklch, var(--accent) 35%, transparent);
+  background: color-mix(in oklch, var(--accent) 18%, transparent);
+  border-color: color-mix(in oklch, var(--accent) 45%, transparent);
   font-weight: 700;
 }
 
 .calendar__day[data-today='true']:hover {
-  background: color-mix(in oklch, var(--accent) 22%, transparent);
+  background: color-mix(in oklch, var(--accent) 28%, transparent);
 }
 
 .calendar__day[data-cursor='true'] {
@@ -966,19 +966,22 @@ button.status[aria-expanded='true'] .status__caret {
 }
 
 /*
- * The accent, not `--line-strong`.
+ * Neutral, deliberately.
  *
- * `--line-strong` on `--surface-raised` measures 1.75:1, which is present in the
- * computed style and invisible to the eye — the border was applying correctly
- * and simply could not be seen. The accent is 5.59:1 on the same surface. It is
- * also what focus already uses elsewhere in the panel, so hover and focus now
- * say the same thing in the same colour.
+ * This had the accent, which put the affirmative colour on the button that
+ * discards the date while Done — the button you actually press to accept —
+ * answered hover with almost nothing. That is the hierarchy upside down.
+ *
+ * `--muted` is the right weight: 5.02:1 against the calendar surface, so plainly
+ * visible, while carrying no suggestion that this is the button to press. Not
+ * `--line-strong`, which measures 1.75:1 and is a divider colour rather than an
+ * indicator one — it has failed this job three times in this file.
  */
 .calendar__foot .link:hover:not(:disabled),
 .calendar__foot .link:focus-visible {
   outline: none;
   color: var(--ink);
-  border-color: var(--accent);
+  border-color: var(--muted);
 }
 
 .calendar__foot .link:disabled {
@@ -1003,15 +1006,18 @@ button.status[aria-expanded='true'] .status__caret {
 }
 
 /*
- * Same accent border as Clear, so the pair answer hover in one language, plus a
- * slight lift of the fill.
+ * Hover turns the whole button accent, because this is the affirmative action
+ * and it should be the loudest thing in the row when you reach for it.
  *
- * This was `--line-strong` too, which on the filled button was the same
- * near-invisible result as on Clear — the border was in the computed style and
- * not on the screen.
+ * A border change was tried first and was nearly nothing: a 1px edge on an
+ * already-filled dark button reads as no response at all, which is what left
+ * Clear looking like the important one. Swapping the fill is unmistakable, and
+ * `--accent` with `--on-accent` is the pair defined to be read against each
+ * other — 5.45:1 light, 9.06:1 dark.
  */
 .calendar__done:hover {
-  background: color-mix(in oklch, var(--ink) 85%, var(--accent));
+  color: var(--on-accent);
+  background: var(--accent);
   border-color: var(--accent);
 }
 
