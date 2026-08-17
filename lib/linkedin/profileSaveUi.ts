@@ -1,7 +1,9 @@
 import { extractProfile, type ProfileDraft } from '../extractors/profile.js';
 import type { RecruiterClient } from '../messaging/client.js';
 import type { Recruiter } from '../models/types.js';
+import { findSaved } from '../recruiters/findSaved.js';
 import { draftToRecruiter } from '../recruiters/fromDraft.js';
+import { watchRecruiters } from '../storage/watchRecruiters.js';
 import { mountShadowHost } from '../ui/shadowMount.js';
 import { waitForElement } from '../ui/waitForElement.js';
 
@@ -198,10 +200,6 @@ function styleTag(): HTMLStyleElement {
   return style;
 }
 
-function normalise(url: string | undefined): string {
-  return (url ?? '').replace(/\/+$/, '').toLowerCase();
-}
-
 /**
  * Mounts the Save button beside LinkedIn's own action buttons.
  *
@@ -248,16 +246,10 @@ export async function mountProfileSaveUi({
 
   root.replaceChildren(styleTag(), button);
 
-  // Matched on memberId first: vanity URLs are user-changeable, so two links to
-  // the same person can differ while the id stays put.
   let saved: Recruiter | undefined;
   try {
     const { recruiters } = await client.list();
-    saved = recruiters.find(
-      (r) =>
-        (draft.memberId !== undefined && r.memberId === draft.memberId) ||
-        (!!draft.profileUrl && normalise(r.profileUrl) === normalise(draft.profileUrl)),
-    );
+    saved = findSaved(recruiters, draft);
   } catch {
     // A failed lookup must not block saving. Worst case the user sees "Save"
     // for someone already saved, and the store overwrites -- far better than a
@@ -288,6 +280,51 @@ export async function mountProfileSaveUi({
     if (undoTimer !== undefined) clearTimeout(undoTimer);
     undoTimer = undefined;
   };
+
+  /**
+   * Re-reads whether this person is saved, after someone else changed the set.
+   *
+   * The lookup above runs once, at mount. Without this the button keeps that
+   * answer for the life of the page: remove the record from the side panel and
+   * the page still says "Saved ✓" until a reload, which is a button lying about
+   * what the store contains.
+   */
+  const refresh = async () => {
+    // A click of our own is mid-flight and owns the state until it settles.
+    if (busy) return;
+
+    let match: Recruiter | undefined;
+    try {
+      const { recruiters } = await client.list();
+      match = findSaved(recruiters, draft);
+    } catch {
+      // Same reasoning as the initial lookup: keep showing what we have rather
+      // than degrade the button over a transient worker failure.
+      return;
+    }
+
+    // Our own writes land here too, and this is what makes them harmless: the
+    // record we just wrote is the one we are already showing, so there is
+    // nothing to redraw -- and in particular the Undo offer survives the
+    // storage event our own removal caused.
+    if (match?.id === saved?.id) return;
+
+    saved = match;
+
+    // Saved again from somewhere else, so the offer to undo is now meaningless.
+    if (saved) {
+      removed = undefined;
+      forgetUndo();
+    }
+
+    render();
+  };
+
+  // Cleaned up via the same signal that abandons a stale mount -- the content
+  // script aborts it before every remount, so listeners cannot accumulate as
+  // you click from profile to profile.
+  const stopWatching = watchRecruiters(() => void refresh());
+  signal?.addEventListener('abort', stopWatching);
 
   button.addEventListener('click', async () => {
     if (busy) return;
