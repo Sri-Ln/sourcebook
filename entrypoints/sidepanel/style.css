@@ -1010,35 +1010,38 @@ button.status[aria-expanded='true'] .status__caret {
   text-decoration: none;
 }
 
+/*
+ * Solid accent by default, so it reads as the affirmative action without needing
+ * to be hovered to say so. It was `--ink`, which made it a dark neutral button
+ * that only became coloured on approach.
+ *
+ * Flex-centred rather than relying on padding and the font's own metrics to
+ * place the label: `line-height: 1` with the box centring both axes puts the
+ * text in the middle whatever the family resolves to.
+ */
 .calendar__done {
-  padding: 0.1875rem 0.5625rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.25rem;
+  padding: 0.1875rem 0.625rem;
   font: inherit;
   font-size: 0.6875rem;
   font-weight: 550;
+  line-height: 1;
   color: var(--on-accent);
-  background: var(--ink);
-  border: 1px solid var(--ink);
+  background: var(--accent);
+  border: 1px solid var(--accent);
   border-radius: 5px;
   cursor: pointer;
-  transition:
-    background-color var(--fast) var(--ease),
-    border-color var(--fast) var(--ease);
+  transition: filter var(--fast) var(--ease);
 }
 
-/*
- * Hover answers in `--success`, border and fill together.
- *
- * Border alone was tried and was nearly nothing: a 1px edge on an already-filled
- * dark button reads as no response, which is what left Clear looking like the
- * important control. And the accent was wrong for a different reason — it is the
- * panel's general-purpose highlight, so it said "interactive" where this button
- * needs to say "this is the one that accepts". Green is that, and it is now a
- * token rather than a one-off, shared with the Messaged status.
- */
+/* Brightness rather than a colour change, matching Update and the save button.
+   Filling it green on hover made the button change identity on approach; being
+   solid accent from the start says the same thing more quietly. */
 .calendar__done:hover {
-  color: var(--on-accent);
-  background: var(--success);
-  border-color: var(--success);
+  filter: brightness(1.08);
 }
 
 .calendar__done:focus-visible {
