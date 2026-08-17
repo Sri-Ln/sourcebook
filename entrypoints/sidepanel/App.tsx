@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { browser } from 'wxt/browser';
 import { inspectActiveTab, requestDraft } from '../../lib/messaging/activeTab.js';
 import { recruiterClient } from '../../lib/messaging/client.js';
 import type { OutreachStatus, Recruiter } from '../../lib/models/types.js';
@@ -12,6 +11,7 @@ import {
 } from '../../lib/recruiters/filter.js';
 import { filterStore } from '../../lib/recruiters/filterStore.js';
 import { isScheduled } from '../../lib/recruiters/followUp.js';
+import { watchRecruiters } from '../../lib/storage/watchRecruiters.js';
 import { hasReminderPermission, requestReminderPermission } from '../../lib/messaging/notifications.js';
 import { Filters } from './Filters.js';
 import { RecruiterGroups } from './RecruiterGroups.js';
@@ -48,11 +48,7 @@ export default function App() {
   // The panel stays open while you browse, so it has to notice saves made from
   // the in-page button. Watching storage is cheaper and more reliable than
   // polling, and it catches changes from another window too.
-  useEffect(() => {
-    const onChanged = () => void load();
-    browser.storage.sync.onChanged.addListener(onChanged);
-    return () => browser.storage.sync.onChanged.removeListener(onChanged);
-  }, [load]);
+  useEffect(() => watchRecruiters(() => void load()), [load]);
 
   const changeFilter = useCallback((next: RecruiterFilter) => {
     setFilter(next);

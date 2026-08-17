@@ -1,13 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
 import type { ProfileDraft } from '../../lib/extractors/profile.js';
 import type { RecruiterClient } from '../../lib/messaging/client.js';
+import { findSaved } from '../../lib/recruiters/findSaved.js';
 import { draftToRecruiter } from '../../lib/recruiters/fromDraft.js';
+import { watchRecruiters } from '../../lib/storage/watchRecruiters.js';
 
 export interface ActiveTabProbe {
   savable: boolean;
   reason?: string;
   tabId?: number;
+  /** Used to recognise a profile already in the store. Absent on older probes. */
+  url?: string;
 }
 
 export interface SaveCurrentPageProps {
@@ -20,14 +24,23 @@ export interface SaveCurrentPageProps {
    * behaviour can be tested without a browser.
    */
   onTabChanged?: (listener: () => void) => () => void;
+  /** Subscribes to changes in the saved set. Injected for the same reason. */
+  onRecruitersChanged?: (listener: () => void) => () => void;
 }
 
+/**
+ * `saved` is derived from the store rather than remembered from a click.
+ *
+ * It used to be a terminal `'saved'` status, reachable only by pressing this
+ * button — which meant it was wrong in both directions. It never appeared for
+ * someone saved from the in-page button, and it stayed on, disabled, after that
+ * person was deleted from the list below it.
+ */
 type State =
   | { status: 'probing' }
   | { status: 'unavailable'; reason: string }
-  | { status: 'ready'; tabId: number }
+  | { status: 'ready'; tabId: number; saved: boolean }
   | { status: 'saving'; tabId: number }
-  | { status: 'saved' }
   | { status: 'failed'; message: string; tabId: number };
 
 /**
@@ -67,17 +80,36 @@ export function SaveCurrentPage({
   requestDraft,
   onSaved,
   onTabChanged = subscribeToTabChanges,
+  onRecruitersChanged = watchRecruiters,
 }: SaveCurrentPageProps) {
   const [state, setState] = useState<State>({ status: 'probing' });
 
+  // A ref rather than state: this guards against a redraw, so reading it must
+  // not schedule one. Mirrors the `busy` flag the in-page button keeps.
+  const saving = useRef(false);
+
   const probe = useCallback(async () => {
     const result = await inspect();
-    setState(
-      result.savable && typeof result.tabId === 'number'
-        ? { status: 'ready', tabId: result.tabId }
-        : { status: 'unavailable', reason: result.reason ?? 'Not available on this page.' },
-    );
-  }, [inspect]);
+
+    if (!result.savable || typeof result.tabId !== 'number') {
+      setState({ status: 'unavailable', reason: result.reason ?? 'Not available on this page.' });
+      return;
+    }
+
+    let saved = false;
+    try {
+      const { recruiters } = await client.list();
+      saved = findSaved(recruiters, { profileUrl: result.url }) !== undefined;
+    } catch {
+      // Offering a save we cannot confirm is better than a button stuck on
+      // "probing" — saving again simply overwrites.
+    }
+
+    // A click that started while this was in flight has the newer answer.
+    if (saving.current) return;
+
+    setState({ status: 'ready', tabId: result.tabId, saved });
+  }, [client, inspect]);
 
   useEffect(() => {
     void probe();
@@ -87,12 +119,17 @@ export function SaveCurrentPage({
   // "Saved ✓" — for every profile you visit afterwards.
   useEffect(() => onTabChanged(() => void probe()), [onTabChanged, probe]);
 
+  // And without this it keeps that state through every save and delete made
+  // from the page or from the list below, until the tab happens to change.
+  useEffect(() => onRecruitersChanged(() => void probe()), [onRecruitersChanged, probe]);
+
   const save = async (tabId: number) => {
+    saving.current = true;
     setState({ status: 'saving', tabId });
 
     try {
       await client.save(draftToRecruiter(await requestDraft(tabId)));
-      setState({ status: 'saved' });
+      setState({ status: 'ready', tabId, saved: true });
       onSaved();
     } catch (error) {
       setState({
@@ -100,22 +137,25 @@ export function SaveCurrentPage({
         tabId,
         message: error instanceof Error ? error.message : String(error),
       });
+    } finally {
+      saving.current = false;
     }
   };
 
   const tabId =
     state.status === 'ready' || state.status === 'failed' ? state.tabId : undefined;
+  const isSaved = state.status === 'ready' && state.saved;
 
   return (
     <div className="save-current">
       <button
         type="button"
-        disabled={tabId === undefined || state.status === 'saved'}
+        disabled={tabId === undefined || isSaved}
         onClick={() => tabId !== undefined && void save(tabId)}
       >
         {state.status === 'saving'
           ? 'Saving…'
-          : state.status === 'saved'
+          : isSaved
             ? 'Saved ✓'
             : state.status === 'failed'
               ? 'Try again'
