@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import type { OutreachStatus, Recruiter } from '../../lib/models/types.js';
 import { dueLabel, isDue } from '../../lib/recruiters/followUp.js';
 import { groupByCompany } from '../../lib/recruiters/groupByCompany.js';
+import { ConfirmDialog } from './ConfirmDialog.js';
 import { EditPanel } from './EditPanel.js';
 import { StatusMenu } from './StatusMenu.js';
 
@@ -35,6 +37,15 @@ export function RecruiterGroups({
   onSaveEdit,
 }: RecruiterGroupsProps) {
   const groups = groupByCompany(recruiters);
+
+  /**
+   * Who the × was pressed for, pending confirmation.
+   *
+   * The whole record rather than an id, so the dialog can name the person. It
+   * also survives the record leaving the list: confirming removes it, and the
+   * dialog unmounts on the same render rather than blanking first.
+   */
+  const [pending, setPending] = useState<Recruiter | undefined>(undefined);
 
   return (
     <div className="groups">
@@ -99,11 +110,15 @@ export function RecruiterGroups({
                     Edit
                   </button>
 
+                  {/* Confirmed rather than immediate. Removal destroys the
+                      note, tags, status and follow-up date added after saving,
+                      none of which the page can reconstruct -- and this control
+                      is one pixel from Edit on a row you were only scanning. */}
                   <button
                     type="button"
                     className="card__remove"
                     aria-label={`Remove ${recruiter.name}`}
-                    onClick={() => onRemove(recruiter.id)}
+                    onClick={() => setPending(recruiter)}
                   >
                     ×
                   </button>
@@ -121,6 +136,19 @@ export function RecruiterGroups({
           </ul>
         </section>
       ))}
+
+      {pending ? (
+        <ConfirmDialog
+          title={`Remove ${pending.name}?`}
+          body="The note, tags, outreach status and follow-up date go too. This cannot be undone."
+          confirmLabel="Remove"
+          onConfirm={() => {
+            onRemove(pending.id);
+            setPending(undefined);
+          }}
+          onCancel={() => setPending(undefined)}
+        />
+      ) : null}
     </div>
   );
 }

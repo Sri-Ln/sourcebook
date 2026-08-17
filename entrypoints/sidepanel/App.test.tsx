@@ -373,15 +373,90 @@ describe('side panel', () => {
       expect(screen.getByLabelText('Note')).toHaveValue('Worth keeping');
     });
 
-    it('removes a recruiter', async () => {
+    it('removes a recruiter once the removal is confirmed', async () => {
       loaded([recruiter({ id: 'jane' })]);
 
       render(<App />);
       await screen.findByText('Jane Placeholder');
 
       await userEvent.click(screen.getByRole('button', { name: /Remove Jane Placeholder/i }));
+      await userEvent.click(await screen.findByRole('button', { name: 'Remove' }));
 
       expect(remove).toHaveBeenCalledWith('jane');
+    });
+
+    describe('confirming a removal', () => {
+      it('asks before removing anything', async () => {
+        loaded([recruiter({ id: 'jane' })]);
+
+        render(<App />);
+        await screen.findByText('Jane Placeholder');
+
+        await userEvent.click(screen.getByRole('button', { name: /Remove Jane Placeholder/i }));
+
+        // The × sits a pixel from Edit on a row you were only scanning, and
+        // removal destroys a note the page cannot reconstruct.
+        expect(await screen.findByRole('dialog')).toBeDefined();
+        expect(remove).not.toHaveBeenCalled();
+      });
+
+      it('names the person, so you know what you are about to lose', async () => {
+        loaded([recruiter({ id: 'jane' })]);
+
+        render(<App />);
+        await screen.findByText('Jane Placeholder');
+
+        await userEvent.click(screen.getByRole('button', { name: /Remove Jane Placeholder/i }));
+
+        expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+          /Remove Jane Placeholder\?/i,
+        );
+      });
+
+      it('keeps the recruiter when cancelled', async () => {
+        loaded([recruiter({ id: 'jane' })]);
+
+        render(<App />);
+        await screen.findByText('Jane Placeholder');
+
+        await userEvent.click(screen.getByRole('button', { name: /Remove Jane Placeholder/i }));
+        await userEvent.click(await screen.findByRole('button', { name: /Cancel/i }));
+
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+        expect(remove).not.toHaveBeenCalled();
+        expect(screen.getByText('Jane Placeholder')).toBeDefined();
+      });
+
+      it('opens with Cancel focused rather than the destructive action', async () => {
+        loaded([recruiter({ id: 'jane' })]);
+
+        render(<App />);
+        await screen.findByText('Jane Placeholder');
+
+        await userEvent.click(screen.getByRole('button', { name: /Remove Jane Placeholder/i }));
+
+        // A dialog that opens with Remove under Enter deletes things for people
+        // who were only dismissing it.
+        await waitFor(() =>
+          expect(screen.getByRole('button', { name: /Cancel/i })).toHaveFocus(),
+        );
+      });
+
+      it('confirms the right person when several are saved', async () => {
+        loaded([
+          recruiter({ id: 'jane', name: 'Jane Placeholder' }),
+          recruiter({ id: 'sam', name: 'Sam Example' }),
+        ]);
+
+        render(<App />);
+        await screen.findByText('Sam Example');
+
+        await userEvent.click(screen.getByRole('button', { name: /Remove Sam Example/i }));
+        await userEvent.click(await screen.findByRole('button', { name: 'Remove' }));
+
+        expect(remove).toHaveBeenCalledWith('sam');
+        expect(remove).toHaveBeenCalledTimes(1);
+      });
     });
   });
 });
