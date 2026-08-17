@@ -23,7 +23,7 @@
   /* Status hues. Distinct in hue, matched in lightness, so no single state
      shouts louder than the others purely by being brighter. */
   --status-none: oklch(0.55 0.01 265);
-  --status-messaged: oklch(0.52 0.11 250);
+  --status-messaged: var(--success);
   --status-referred: oklch(0.51 0.13 300);
   --status-closed: oklch(0.60 0.008 265);
 
@@ -34,6 +34,11 @@
      than a fill, so it is free to sit at the lightness that reads clearest
      against the surface instead of one dark enough to carry white text. */
   --danger: oklch(0.535 0.19 25);
+
+  /* The counterpart to --danger: a reply landed, a step went well, a dialog was
+     accepted. Held at the accent's lightness in both themes so `--on-accent`
+     reads correctly on top of it and it can be filled, not only outlined. */
+  --success: oklch(0.52 0.12 155);
 
   --shadow: oklch(0.2 0 0 / 0.05);
   --shadow-menu: oklch(0.2 0 0 / 0.18);
@@ -72,7 +77,7 @@
     --accent: oklch(0.76 0.12 258);
 
     --status-none: oklch(0.72 0.01 265);
-    --status-messaged: oklch(0.78 0.10 250);
+    --status-messaged: var(--success);
     --status-referred: oklch(0.79 0.11 300);
     --status-closed: oklch(0.60 0.008 265);
 
@@ -81,6 +86,10 @@
     /* Lifted like the accent is, because a border has to be seen against a dark
        surface rather than read through. */
     --danger: oklch(0.70 0.175 25);
+
+    /* Tracks the accent's dark-theme lightness for the same reason: so a filled
+       success surface still carries `--on-accent` legibly. */
+    --success: oklch(0.76 0.12 155);
 
     --shadow: oklch(0 0 0 / 0.3);
     --shadow-menu: oklch(0 0 0 / 0.55);
@@ -445,15 +454,28 @@ button.status[aria-expanded='true'] .status__caret {
   font-weight: 650;
 }
 
+/*
+ * Both surfaces that show a status take their hue from the same four lines.
+ *
+ * `button.status` has always read `var(--status)` for its text and its tinted
+ * background, but only the menu options ever set it — no `.status--<value>` rule
+ * has existed in this file's history. So on every card the pill fell back to
+ * inherited ink with a transparent background, and the "status hues" the comment
+ * above describes were visible in the open dropdown and nowhere else.
+ */
+.status--not-contacted,
 .status-menu__option--not-contacted {
   --status: var(--status-none);
 }
+.status--messaged,
 .status-menu__option--messaged {
   --status: var(--status-messaged);
 }
+.status--referred,
 .status-menu__option--referred {
   --status: var(--status-referred);
 }
+.status--closed,
 .status-menu__option--closed {
   --status: var(--status-closed);
 }
@@ -1006,19 +1028,19 @@ button.status[aria-expanded='true'] .status__caret {
 }
 
 /*
- * Hover turns the whole button accent, because this is the affirmative action
- * and it should be the loudest thing in the row when you reach for it.
+ * Hover answers in `--success`, border and fill together.
  *
- * A border change was tried first and was nearly nothing: a 1px edge on an
- * already-filled dark button reads as no response at all, which is what left
- * Clear looking like the important one. Swapping the fill is unmistakable, and
- * `--accent` with `--on-accent` is the pair defined to be read against each
- * other — 5.45:1 light, 9.06:1 dark.
+ * Border alone was tried and was nearly nothing: a 1px edge on an already-filled
+ * dark button reads as no response, which is what left Clear looking like the
+ * important control. And the accent was wrong for a different reason — it is the
+ * panel's general-purpose highlight, so it said "interactive" where this button
+ * needs to say "this is the one that accepts". Green is that, and it is now a
+ * token rather than a one-off, shared with the Messaged status.
  */
 .calendar__done:hover {
   color: var(--on-accent);
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--success);
+  border-color: var(--success);
 }
 
 .calendar__done:focus-visible {
