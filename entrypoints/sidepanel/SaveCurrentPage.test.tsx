@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProfileDraft } from '../../lib/extractors/profile.js';
 import type { RecruiterClient } from '../../lib/messaging/client.js';
+import { SCHEMA_VERSION, type Recruiter } from '../../lib/models/types.js';
 import { SaveCurrentPage } from './SaveCurrentPage.js';
 
 function fakeClient(overrides: Partial<RecruiterClient> = {}): RecruiterClient {
@@ -24,13 +25,34 @@ const draft: ProfileDraft = {
   warnings: [],
 };
 
+function recruiter(overrides: Partial<Recruiter> = {}): Recruiter {
+  return {
+    id: 'existing',
+    schemaVersion: SCHEMA_VERSION,
+    name: 'Jane Placeholder',
+    profileUrl: 'https://www.linkedin.com/in/jane-placeholder',
+    outreach: 'not-contacted',
+    source: { type: 'profile' },
+    tags: [],
+    savedAt: '2026-08-12T10:00:00.000Z',
+    updatedAt: '2026-08-12T10:00:00.000Z',
+    ...overrides,
+  };
+}
+
 function setup(over: Partial<Parameters<typeof SaveCurrentPage>[0]> = {}) {
   const client = over.client ?? fakeClient();
   const onSaved = vi.fn();
-  // Captured so a test can simulate the user switching tab.
+  // Captured so a test can simulate the user switching tab, or a save made
+  // somewhere else in the extension.
   let fireTabChange: () => void = () => {};
+  let fireStoreChange: () => void = () => {};
   const onTabChanged = (listener: () => void) => {
     fireTabChange = listener;
+    return () => {};
+  };
+  const onRecruitersChanged = (listener: () => void) => {
+    fireStoreChange = listener;
     return () => {};
   };
 
@@ -41,11 +63,24 @@ function setup(over: Partial<Parameters<typeof SaveCurrentPage>[0]> = {}) {
       requestDraft={vi.fn().mockResolvedValue(draft)}
       onSaved={onSaved}
       onTabChanged={onTabChanged}
+      onRecruitersChanged={onRecruitersChanged}
       {...over}
     />,
   );
-  return { client, onSaved, tabChanged: () => fireTabChange() };
+  return {
+    client,
+    onSaved,
+    tabChanged: () => fireTabChange(),
+    storeChanged: () => fireStoreChange(),
+  };
 }
+
+/** A probe from a real tab, which carries the URL the classifier accepted. */
+const onJanesProfile = {
+  savable: true,
+  tabId: 7,
+  url: 'https://www.linkedin.com/in/jane-placeholder/?trk=feed',
+};
 
 const button = () => screen.getByRole('button');
 
@@ -168,6 +203,84 @@ describe('SaveCurrentPage', () => {
       tabChanged();
 
       await waitFor(() => expect(button()).not.toBeDisabled());
+    });
+  });
+
+  describe('staying in step with the store', () => {
+    it('recognises a profile that was saved from the in-page button', async () => {
+      setup({
+        inspect: vi.fn().mockResolvedValue(onJanesProfile),
+        client: fakeClient({
+          list: vi.fn().mockResolvedValue({ recruiters: [recruiter()], overflowedIds: [] }),
+        }),
+      });
+
+      // Matched despite the tracking parameter and the trailing slash the tab
+      // URL carries and the stored record does not.
+      await waitFor(() => expect(button()).toHaveTextContent('Saved ✓'));
+      expect(button()).toBeDisabled();
+    });
+
+    it('offers the save again once that record is deleted', async () => {
+      const list = vi
+        .fn()
+        .mockResolvedValue({ recruiters: [recruiter()], overflowedIds: [] });
+      const { storeChanged } = setup({
+        inspect: vi.fn().mockResolvedValue(onJanesProfile),
+        client: fakeClient({ list }),
+      });
+      await waitFor(() => expect(button()).toHaveTextContent('Saved ✓'));
+
+      list.mockResolvedValue({ recruiters: [], overflowedIds: [] });
+      storeChanged();
+
+      // Deleting from the list below used to leave this button disabled on
+      // "Saved ✓", with no way to save the person again.
+      await waitFor(() => expect(button()).toHaveTextContent('Save this profile'));
+      expect(button()).not.toBeDisabled();
+    });
+
+    it('confirms a save made from the in-page button while the panel is open', async () => {
+      const list = vi.fn().mockResolvedValue({ recruiters: [], overflowedIds: [] });
+      const { storeChanged } = setup({
+        inspect: vi.fn().mockResolvedValue(onJanesProfile),
+        client: fakeClient({ list }),
+      });
+      await waitFor(() => expect(button()).toHaveTextContent('Save this profile'));
+
+      list.mockResolvedValue({ recruiters: [recruiter()], overflowedIds: [] });
+      storeChanged();
+
+      await waitFor(() => expect(button()).toHaveTextContent('Saved ✓'));
+    });
+
+    it('does not claim someone else in the store is this profile', async () => {
+      setup({
+        inspect: vi.fn().mockResolvedValue(onJanesProfile),
+        client: fakeClient({
+          list: vi.fn().mockResolvedValue({
+            recruiters: [
+              recruiter({ id: 'other', profileUrl: 'https://www.linkedin.com/in/someone-else' }),
+            ],
+            overflowedIds: [],
+          }),
+        }),
+      });
+
+      await waitFor(() => expect(button()).not.toBeDisabled());
+      expect(button()).toHaveTextContent('Save this profile');
+    });
+
+    it('still offers the save when the lookup fails', async () => {
+      setup({
+        inspect: vi.fn().mockResolvedValue(onJanesProfile),
+        client: fakeClient({ list: vi.fn().mockRejectedValue(new Error('worker down')) }),
+      });
+
+      // Same bargain the in-page button makes: saving again overwrites, but a
+      // button stuck on "probing" cannot be recovered from.
+      await waitFor(() => expect(button()).not.toBeDisabled());
+      expect(button()).toHaveTextContent('Save this profile');
     });
   });
 

@@ -1,3 +1,4 @@
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadFixture } from '../../tests/helpers/loadFixture.js';
 import { HOST_ATTRIBUTE } from '../ui/shadowMount.js';
@@ -220,6 +221,9 @@ describe('mountProfileSaveUi', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     vi.clearAllMocks();
+    // Also drops the storage listeners a previous mount registered, which
+    // would otherwise fire against a client from a finished test.
+    fakeBrowser.reset();
   });
 
   it('mounts a Save button beside the message action', async () => {
@@ -459,6 +463,130 @@ describe('mountProfileSaveUi', () => {
       // intrusion -- so the button carries it, and the retry stays available.
       expect(button().title).toContain('sync is full');
       expect(button().disabled).toBe(false);
+    });
+  });
+
+  describe('staying in step with the store', () => {
+    /**
+     * Stands in for a write made anywhere else -- the side panel, the options
+     * page, another window. What reaches this button is the storage event, not
+     * the caller, so the source does not matter.
+     */
+    const changeElsewhere = (key: string, value: unknown) =>
+      value === undefined
+        ? fakeBrowser.storage.sync.remove(key)
+        : fakeBrowser.storage.sync.set({ [key]: value });
+
+    it('goes back to Save when the record is deleted from the panel', async () => {
+      loadProfilePage();
+      await changeElsewhere('r:jane', { id: 'jane' });
+      const list = vi
+        .fn()
+        .mockResolvedValue({ recruiters: [saved({ id: 'jane' })], overflowedIds: [] });
+      await mountProfileSaveUi({ client: fakeClient({ list }) });
+      await vi.waitFor(() => expect(button().textContent).toBe('Saved ✓'));
+
+      list.mockResolvedValue({ recruiters: [], overflowedIds: [] });
+      await changeElsewhere('r:jane', undefined);
+
+      // The whole point: without this the page says "Saved ✓" for a record
+      // that no longer exists, until you reload it.
+      await vi.waitFor(() => expect(button().textContent).toBe('Save'));
+    });
+
+    it('shows Saved ✓ when this profile is saved from the panel', async () => {
+      loadProfilePage();
+      const list = vi.fn().mockResolvedValue({ recruiters: [], overflowedIds: [] });
+      await mountProfileSaveUi({ client: fakeClient({ list }) });
+      expect(button().textContent).toBe('Save');
+
+      list.mockResolvedValue({ recruiters: [saved({ id: 'jane' })], overflowedIds: [] });
+      await changeElsewhere('r:jane', { id: 'jane' });
+
+      await vi.waitFor(() => expect(button().textContent).toBe('Saved ✓'));
+    });
+
+    it('leaves the button alone when someone else changes', async () => {
+      loadProfilePage();
+      const stored = saved({ id: 'jane' });
+      const list = vi.fn().mockResolvedValue({ recruiters: [stored], overflowedIds: [] });
+      await mountProfileSaveUi({ client: fakeClient({ list }) });
+      await vi.waitFor(() => expect(button().textContent).toBe('Saved ✓'));
+
+      list.mockResolvedValue({
+        recruiters: [stored, saved({ id: 'someone-else', memberId: undefined, profileUrl: 'https://www.linkedin.com/in/other' })],
+        overflowedIds: [],
+      });
+      await changeElsewhere('r:someone-else', { id: 'someone-else' });
+
+      await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+      expect(button().textContent).toBe('Saved ✓');
+    });
+
+    /**
+     * A removal of our own writes to storage, so the event that comes back is
+     * one this button caused. Undo has to survive it — it is the only thing
+     * standing between a stray click and a lost note, and a refresh that reset
+     * the button to "Save" would take it away.
+     *
+     * The event and the reply to `remove` race, and nothing orders them, so
+     * both arrival times are covered: one is caught by the in-flight guard, the
+     * other by the button noticing the store already says what it is showing.
+     */
+    it('keeps the undo offer when its own write lands mid-click', async () => {
+      loadProfilePage();
+      const list = vi
+        .fn()
+        .mockResolvedValue({ recruiters: [saved({ id: 'jane' })], overflowedIds: [] });
+      const client = fakeClient({
+        list,
+        remove: vi.fn().mockImplementation(async () => {
+          list.mockResolvedValue({ recruiters: [], overflowedIds: [] });
+          await changeElsewhere('r:jane', undefined);
+        }),
+      });
+      await mountProfileSaveUi({ client });
+      await vi.waitFor(() => expect(button().textContent).toBe('Saved ✓'));
+
+      button().click();
+
+      await vi.waitFor(() => expect(button().textContent).toBe('Undo'));
+      // The refresh was skipped outright: the click still owned the state.
+      expect(list).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the undo offer when its own write lands after the click settles', async () => {
+      loadProfilePage();
+      const list = vi
+        .fn()
+        .mockResolvedValue({ recruiters: [saved({ id: 'jane' })], overflowedIds: [] });
+      await mountProfileSaveUi({ client: fakeClient({ list }) });
+      await vi.waitFor(() => expect(button().textContent).toBe('Saved ✓'));
+
+      button().click();
+      await vi.waitFor(() => expect(button().textContent).toBe('Undo'));
+
+      list.mockResolvedValue({ recruiters: [], overflowedIds: [] });
+      await changeElsewhere('r:jane', undefined);
+
+      // This time the refresh does run, and finds the store agreeing with what
+      // the button already shows -- nothing saved -- so it changes nothing.
+      await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+      expect(button().textContent).toBe('Undo');
+    });
+
+    it('stops listening once the mount is abandoned', async () => {
+      loadProfilePage();
+      const list = vi.fn().mockResolvedValue({ recruiters: [], overflowedIds: [] });
+      const controller = new AbortController();
+      await mountProfileSaveUi({ client: fakeClient({ list }), signal: controller.signal });
+
+      controller.abort();
+      await changeElsewhere('r:jane', { id: 'jane' });
+
+      // Soft navigation aborts the previous mount. A listener surviving it
+      // would accumulate one per profile visited.
+      expect(list).toHaveBeenCalledTimes(1);
     });
   });
 });
