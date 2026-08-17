@@ -24,17 +24,16 @@
      shouts louder than the others purely by being brighter. */
   --status-none: oklch(0.55 0.01 265);
   --status-messaged: oklch(0.52 0.11 250);
-  --status-replied: oklch(0.50 0.11 155);
   --status-referred: oklch(0.51 0.13 300);
   --status-closed: oklch(0.60 0.008 265);
 
   /* Text drawn on top of the accent colour. */
   --on-accent: oklch(0.99 0 0);
 
-  /* Destructive actions only, and there is exactly one. Held dark enough in both
-     themes to carry white text at 4.5:1, rather than lightening with the accent
-     — a red that goes pale in dark mode stops reading as a warning. */
-  --danger: oklch(0.505 0.175 25);
+  /* Destructive actions only, and there is exactly one. Drawn as a border rather
+     than a fill, so it is free to sit at the lightness that reads clearest
+     against the surface instead of one dark enough to carry white text. */
+  --danger: oklch(0.535 0.19 25);
 
   --shadow: oklch(0.2 0 0 / 0.05);
   --shadow-menu: oklch(0.2 0 0 / 0.18);
@@ -74,15 +73,14 @@
 
     --status-none: oklch(0.72 0.01 265);
     --status-messaged: oklch(0.78 0.10 250);
-    --status-replied: oklch(0.78 0.11 155);
     --status-referred: oklch(0.79 0.11 300);
     --status-closed: oklch(0.60 0.008 265);
 
     --on-accent: oklch(0.16 0.01 265);
 
-    /* Lifted just enough to separate from the dark surface, still dark enough
-       for the white label on top of it. */
-    --danger: oklch(0.55 0.185 25);
+    /* Lifted like the accent is, because a border has to be seen against a dark
+       surface rather than read through. */
+    --danger: oklch(0.70 0.175 25);
 
     --shadow: oklch(0 0 0 / 0.3);
     --shadow-menu: oklch(0 0 0 / 0.55);
@@ -453,9 +451,6 @@ button.status[aria-expanded='true'] .status__caret {
 .status-menu__option--messaged {
   --status: var(--status-messaged);
 }
-.status-menu__option--replied {
-  --status: var(--status-replied);
-}
 .status-menu__option--referred {
   --status: var(--status-referred);
 }
@@ -710,10 +705,12 @@ button.status[aria-expanded='true'] .status__caret {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 1.375rem;
-  height: 1.375rem;
+  width: 1.75rem;
+  height: 1.75rem;
   font: inherit;
-  font-size: 0.875rem;
+  /* The chevrons were legible but fiddly to hit. This is close to the 24px
+     minimum a pointer target wants, in a panel where everything else is small. */
+  font-size: 1.25rem;
   line-height: 1;
   color: var(--muted);
   background: none;
@@ -736,10 +733,27 @@ button.status[aria-expanded='true'] .status__caret {
   box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 35%, transparent);
 }
 
-.calendar__week {
+/*
+ * One grid for the whole calendar, headers included.
+ *
+ * Each week was its own grid, and that is why the columns drifted out of line
+ * with the day letters: `1fr` is `minmax(auto, 1fr)`, so a column is never
+ * narrower than its content, and separate grids resolve that independently. A
+ * row of single letters and a row of two-digit dates disagreed about how wide
+ * column one should be.
+ *
+ * `minmax(0, 1fr)` alone would fix the drift, but one grid is stronger: there is
+ * only one set of columns, so the rows cannot disagree in the first place. The
+ * rows keep their element and their role="row" and contribute no layout.
+ */
+.calendar__grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 1px;
+}
+
+.calendar__week {
+  display: contents;
 }
 
 .calendar__weekday {
@@ -779,24 +793,50 @@ button.status[aria-expanded='true'] .status__caret {
   background: var(--surface);
 }
 
-.calendar__day:focus-visible {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 22%, transparent);
-}
-
-/* Today is outlined, the selection is filled. Two different questions, so two
-   different marks rather than two shades of one. */
+/*
+ * Three states, three marks, in increasing strength: today is outlined, the
+ * keyboard cursor carries a ring, and the chosen date is filled.
+ *
+ * The cursor is keyed off `data-cursor` rather than `:focus-visible`, which was
+ * the bug. Opening the calendar moves focus programmatically, and Chrome does
+ * not match `:focus-visible` when the interaction that led there was a mouse
+ * click — so opening the panel by clicking marked nothing at all, and with no
+ * date set there was nothing highlighted anywhere on the grid.
+ */
 .calendar__day[data-today='true'] {
   border-color: var(--line-strong);
   font-weight: 650;
 }
 
+.calendar__day[data-cursor='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 22%, transparent);
+}
+
+.calendar__day:focus-visible {
+  outline: none;
+}
+
+/*
+ * `--accent` with `--on-accent` on top: the one pair in the system defined to be
+ * read against each other, which is why it is the right answer here rather than
+ * a new colour. It flips with the theme, so the fill stays dark-on-light in one
+ * and light-on-dark in the other, and the weight increase means the selection
+ * does not depend on colour alone.
+ */
 .calendar__day[aria-selected='true'] {
   color: var(--on-accent);
   background: var(--accent);
   border-color: var(--accent);
-  font-weight: 650;
+  font-weight: 700;
+}
+
+/* The ring has to change too, or the cursor is invisible once it sits on the
+   selected day — which is exactly where it starts. */
+.calendar__day[aria-selected='true'][data-cursor='true'] {
+  box-shadow:
+    0 0 0 2px var(--surface-raised),
+    0 0 0 3px var(--accent);
 }
 
 .calendar__day[aria-selected='true']:hover {
@@ -810,6 +850,29 @@ button.status[aria-expanded='true'] .status__caret {
   margin-top: 0.4375rem;
   padding-top: 0.4375rem;
   border-top: 1px solid var(--line);
+}
+
+/*
+ * Both footer buttons carry a transparent border at rest and reveal it on hover.
+ * `.link` sets `border: none`, so Clear had no border box to colour at all —
+ * reserving the pixel here means the row does not shift when either lights up.
+ */
+.calendar__foot .link {
+  padding: 0.1875rem 0.4375rem;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  text-decoration: none;
+  color: var(--muted);
+  transition:
+    color var(--fast) var(--ease),
+    border-color var(--fast) var(--ease);
+}
+
+.calendar__foot .link:hover:not(:disabled),
+.calendar__foot .link:focus-visible {
+  outline: none;
+  color: var(--ink);
+  border-color: var(--line-strong);
 }
 
 .calendar__foot .link:disabled {
@@ -828,10 +891,21 @@ button.status[aria-expanded='true'] .status__caret {
   border: 1px solid var(--ink);
   border-radius: 5px;
   cursor: pointer;
+  transition:
+    background-color var(--fast) var(--ease),
+    border-color var(--fast) var(--ease);
+}
+
+/* Already filled, so hover lifts the border off the fill rather than adding a
+   colour: the same gesture as the other button, read the other way round. */
+.calendar__done:hover {
+  background: color-mix(in oklch, var(--ink) 88%, var(--bg));
+  border-color: var(--line-strong);
 }
 
 .calendar__done:focus-visible {
   outline: none;
+  border-color: var(--accent);
   box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 40%, transparent);
 }
 
@@ -927,16 +1001,28 @@ button.status[aria-expanded='true'] .status__caret {
 
 /* The destructive action carries the weight. Colour alone would not survive
    colour-blind vision, so it is filled and bolder as well as red. */
-.confirm__danger {
-  color: oklch(0.99 0 0);
-  background: var(--danger);
+/*
+ * The destructive action is as quiet as its neighbour until you reach for it,
+ * and then its border turns red.
+ *
+ * Filled red was too loud for a two-button dialog: it made Remove the brightest
+ * thing on screen in a panel built to recede, and it dragged in a white label
+ * whose contrast was then the weakest part of the design. A border carries the
+ * warning at the moment it is useful, which is when the pointer is on it.
+ *
+ * Selectors are scoped through the parent to outrank `.confirm__actions button`
+ * above: that is a class plus a type, which beats a lone class however late it
+ * appears in the file.
+ */
+.confirm__actions .confirm__danger:hover {
   border-color: var(--danger);
-  font-weight: 600;
 }
 
-.confirm__danger:hover {
-  background: color-mix(in oklch, var(--danger) 88%, black);
-  border-color: color-mix(in oklch, var(--danger) 88%, black);
+/* Focus gets the same warning as hover. Reaching Remove by keyboard is the case
+   where a colour cue you only get from a pointer is worth nothing. */
+.confirm__actions .confirm__danger:focus-visible {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--danger) 25%, transparent);
 }
 
 .edit-form__actions {
