@@ -622,15 +622,13 @@ button.status[aria-expanded='true'] .status__caret {
 }
 
 /*
- * Scoped through two ancestors, which looks like overkill and is not.
+ * Scoped through the row rather than left as a lone class.
  *
- * `.edit-form button[type='button']` further down is a class, a type and an
- * attribute, and it beats a lone class however late this appears in the file —
- * it was silently supplying a solid `--line` border and its own font size. Three
- * class-level selectors clear it. This is the third rule in this stylesheet to
- * lose that argument, so it is worth stating rather than rediscovering.
+ * It no longer has to be: the over-broad `.edit-form button[type='button']` that
+ * used to outrank it is now confined to `.edit-form__actions`. Kept as-is
+ * because it costs nothing and states where these chips live.
  */
-.edit-form .tag-suggest .tag-suggest__chip {
+.tag-suggest .tag-suggest__chip {
   padding: 0.0625rem 0.375rem;
   font: inherit;
   font-size: 0.625rem;
@@ -649,8 +647,8 @@ button.status[aria-expanded='true'] .status__caret {
 /* Dashed until you commit to it, solid once it is yours. Border style carries
    the change that colour would otherwise have to, which keeps the row quiet
    next to the field it belongs to. */
-.edit-form .tag-suggest .tag-suggest__chip:hover,
-.edit-form .tag-suggest .tag-suggest__chip:focus-visible {
+.tag-suggest .tag-suggest__chip:hover,
+.tag-suggest .tag-suggest__chip:focus-visible {
   outline: none;
   color: var(--ink);
   background: var(--surface);
@@ -1194,8 +1192,26 @@ button.status[aria-expanded='true'] .status__caret {
   border-radius: 5px;
 }
 
-.edit-form button[type='submit'],
-.edit-form button[type='button'] {
+/*
+ * Scoped to the form's own action row, and not to every button inside the form.
+ *
+ * These were `.edit-form button[type='submit']` and
+ * `.edit-form button[type='button']`: a class, a type and an attribute. Every
+ * control this form contains is a `<button type="button">` — all 42 calendar
+ * days, both month arrows, Clear, Done, the date trigger and the tag chips — so
+ * the pair outranked each of those components' own rules and flattened them all
+ * to muted text on a transparent background inside a `--line` border.
+ *
+ * That is why today showed no indicator, the chosen date showed no fill, and
+ * Done showed no colour however many times those rules were corrected: the rules
+ * were right and were being overruled. The calendar rendered as a grid of empty
+ * boxes.
+ *
+ * Cancel and Update are the only buttons this was ever meant to reach, and they
+ * are the only two in `.edit-form__actions`.
+ */
+.edit-form__actions button[type='submit'],
+.edit-form__actions button[type='button'] {
   padding: 0.25rem 0.625rem;
   font: inherit;
   font-size: 0.6875rem;
@@ -1207,43 +1223,25 @@ button.status[aria-expanded='true'] .status__caret {
     background-color var(--fast) var(--ease);
 }
 
-.edit-form button[type='submit'] {
+.edit-form__actions button[type='submit'] {
   color: var(--on-accent);
   background: var(--accent);
   border: none;
 }
 
-.edit-form button[type='submit']:hover {
+.edit-form__actions button[type='submit']:hover {
   filter: brightness(1.08);
 }
 
-.edit-form button[type='button'] {
+.edit-form__actions button[type='button'] {
   color: var(--muted);
   background: transparent;
   border: 1px solid var(--line);
 }
 
-.edit-form button[type='button']:hover {
+.edit-form__actions button[type='button']:hover {
   color: var(--ink);
   border-color: var(--line-strong);
-}
-
-/* The inline Clear beside the date is a link, not a third button competing
-   with Update and Cancel. */
-.edit-form .link {
-  flex-shrink: 0;
-  padding: 0;
-  font-size: 0.625rem;
-  color: var(--muted);
-  background: none;
-  border: none;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.edit-form .link:hover {
-  color: var(--ink);
 }
 
 /* ---------- Misc ---------- */
