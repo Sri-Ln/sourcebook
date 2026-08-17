@@ -41,9 +41,13 @@ export function Filters({ filter, tags, onChange }: FiltersProps) {
         onChange={(event) => onChange({ ...filter, query: event.target.value })}
       />
 
+      {/* Due and the statuses share one wrapping row, but they are different
+          kinds of control: Due is a standalone toggle, the statuses are a set.
+          The inner group keeps that distinction for screen readers and is
+          display: contents so the chips still flow as one row. */}
       <div className="filters__chips">
-        {/* Given its own row and first position: "who should I chase today" is
-            the question this list exists to answer. */}
+        {/* First position: "who should I chase today" is the question this
+            list exists to answer. */}
         <button
           type="button"
           className="chip chip--due"
@@ -52,20 +56,20 @@ export function Filters({ filter, tags, onChange }: FiltersProps) {
         >
           Due
         </button>
-      </div>
 
-      <div className="filters__chips" role="group" aria-label="Filter by outreach status">
-        {OUTREACH_STATUSES.map((status) => (
-          <button
-            key={status}
-            type="button"
-            className="chip"
-            aria-pressed={filter.statuses.includes(status)}
-            onClick={() => toggleStatus(status)}
-          >
-            {OUTREACH_LABELS[status]}
-          </button>
-        ))}
+        <div className="filters__group" role="group" aria-label="Filter by outreach status">
+          {OUTREACH_STATUSES.map((status) => (
+            <button
+              key={status}
+              type="button"
+              className="chip"
+              aria-pressed={filter.statuses.includes(status)}
+              onClick={() => toggleStatus(status)}
+            >
+              {OUTREACH_LABELS[status]}
+            </button>
+          ))}
+        </div>
       </div>
 
       {tags.length > 0 ? (
