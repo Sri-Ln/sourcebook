@@ -188,6 +188,12 @@ body {
   gap: 0.25rem;
 }
 
+/* A semantic grouping only — the chips inside belong to the parent row's flex
+   layout, so the group box itself must not become one. */
+.filters__group {
+  display: contents;
+}
+
 .chip {
   padding: 0.125rem 0.5rem;
   font: inherit;
