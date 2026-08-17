@@ -701,17 +701,21 @@ button.status[aria-expanded='true'] .status__caret {
   font-weight: 600;
 }
 
+/*
+ * Sized by padding around a drawn arrow, not by a fixed box around a glyph.
+ *
+ * The previous version set a 1.75rem box and a 1.25rem font-size, which read as
+ * a large button containing a tiny mark: "‹" paints roughly 5px wide however
+ * large the font is, so the type size inflated the container and left the arrow
+ * alone. The arrow below is drawn from borders, so its size is the size stated.
+ */
 .calendar__page {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  font: inherit;
-  /* The chevrons were legible but fiddly to hit. This is close to the 24px
-     minimum a pointer target wants, in a panel where everything else is small. */
-  font-size: 1.25rem;
-  line-height: 1;
+  /* Enough to click without becoming a box with a speck in it: the arrow paints
+     11px inside an 18px button, where it was 5px inside 23px. */
+  padding: 0.375rem;
   color: var(--muted);
   background: none;
   border: none;
@@ -720,6 +724,25 @@ button.status[aria-expanded='true'] .status__caret {
   transition:
     color var(--fast) var(--ease),
     background-color var(--fast) var(--ease);
+}
+
+/* Two borders on a rotated square. Same technique as `.status__caret`, which is
+   already how the status pill draws its own marker. */
+.calendar__chevron {
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+}
+
+/* Rotating leaves the visual mass off-centre, because the ink sits along one
+   corner rather than through the middle. The nudge is optical, not arithmetic. */
+.calendar__page--prev .calendar__chevron {
+  transform: rotate(-135deg) translate(-1px, -1px);
+}
+
+.calendar__page--next .calendar__chevron {
+  transform: rotate(45deg) translate(-1px, -1px);
 }
 
 .calendar__page:hover {
@@ -857,8 +880,14 @@ button.status[aria-expanded='true'] .status__caret {
  * `.link` sets `border: none`, so Clear had no border box to colour at all —
  * reserving the pixel here means the row does not shift when either lights up.
  */
+/* Type matched to `.calendar__done` deliberately. `.link` sets `font: inherit`,
+   which meant Clear rendered at the panel's 13px next to Done's 0.6875rem and
+   the pair read as two different kinds of control. Both values are stated on
+   both rules rather than inherited, so they cannot drift apart again. */
 .calendar__foot .link {
   padding: 0.1875rem 0.4375rem;
+  font-size: 0.6875rem;
+  font-weight: 550;
   border: 1px solid transparent;
   border-radius: 5px;
   text-decoration: none;
@@ -868,11 +897,20 @@ button.status[aria-expanded='true'] .status__caret {
     border-color var(--fast) var(--ease);
 }
 
+/*
+ * The accent, not `--line-strong`.
+ *
+ * `--line-strong` on `--surface-raised` measures 1.75:1, which is present in the
+ * computed style and invisible to the eye — the border was applying correctly
+ * and simply could not be seen. The accent is 5.59:1 on the same surface. It is
+ * also what focus already uses elsewhere in the panel, so hover and focus now
+ * say the same thing in the same colour.
+ */
 .calendar__foot .link:hover:not(:disabled),
 .calendar__foot .link:focus-visible {
   outline: none;
   color: var(--ink);
-  border-color: var(--line-strong);
+  border-color: var(--accent);
 }
 
 .calendar__foot .link:disabled {
@@ -896,11 +934,17 @@ button.status[aria-expanded='true'] .status__caret {
     border-color var(--fast) var(--ease);
 }
 
-/* Already filled, so hover lifts the border off the fill rather than adding a
-   colour: the same gesture as the other button, read the other way round. */
+/*
+ * Same accent border as Clear, so the pair answer hover in one language, plus a
+ * slight lift of the fill.
+ *
+ * This was `--line-strong` too, which on the filled button was the same
+ * near-invisible result as on Clear — the border was in the computed style and
+ * not on the screen.
+ */
 .calendar__done:hover {
-  background: color-mix(in oklch, var(--ink) 88%, var(--bg));
-  border-color: var(--line-strong);
+  background: color-mix(in oklch, var(--ink) 85%, var(--accent));
+  border-color: var(--accent);
 }
 
 .calendar__done:focus-visible {

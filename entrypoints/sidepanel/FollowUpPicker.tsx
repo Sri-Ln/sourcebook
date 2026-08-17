@@ -197,13 +197,17 @@ export function FollowUpPicker({ value, onChange, today = todayIso() }: FollowUp
           aria-labelledby={labelId}
         >
           <div className="calendar__head">
+            {/* The arrow is drawn in CSS rather than set as a "‹" glyph. That
+                character paints about 5px wide whatever its font-size, so making
+                it bigger only inflated the button around it. Borders on a
+                rotated box size exactly as told, and inherit currentColor. */}
             <button
               type="button"
-              className="calendar__page"
+              className="calendar__page calendar__page--prev"
               aria-label="Previous month"
               onClick={() => setCursor((current) => addMonths(current, -1))}
             >
-              <span aria-hidden="true">‹</span>
+              <span className="calendar__chevron" aria-hidden="true" />
             </button>
 
             {/* Announced on change so paging is audible, not just visible. */}
@@ -213,11 +217,11 @@ export function FollowUpPicker({ value, onChange, today = todayIso() }: FollowUp
 
             <button
               type="button"
-              className="calendar__page"
+              className="calendar__page calendar__page--next"
               aria-label="Next month"
               onClick={() => setCursor((current) => addMonths(current, 1))}
             >
-              <span aria-hidden="true">›</span>
+              <span className="calendar__chevron" aria-hidden="true" />
             </button>
           </div>
 

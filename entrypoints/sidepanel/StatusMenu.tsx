@@ -31,6 +31,11 @@ export function StatusMenu({ value, personName, onChange }: StatusMenuProps) {
   const menu = useRef<HTMLDivElement>(null);
   const menuId = useId();
 
+  const toggle = () => {
+    setActive(OUTREACH_STATUSES.indexOf(value));
+    setOpen((wasOpen) => !wasOpen);
+  };
+
   // Positioned on open rather than in CSS: the menu lives in the top layer, so
   // it no longer shares a coordinate space with the row that spawned it.
   useEffect(() => {
@@ -126,10 +131,22 @@ export function StatusMenu({ value, personName, onChange }: StatusMenuProps) {
         aria-label={`Outreach status for ${personName}`}
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => {
-          setActive(OUTREACH_STATUSES.indexOf(value));
-          setOpen((wasOpen) => !wasOpen);
-        }}
+        /*
+         * Click, not hover, and not pointerdown either.
+         *
+         * Hover cannot be the only trigger: keyboard and touch still need a
+         * click, so it saves them nothing, and the pill sits in a dense row
+         * where reaching for Edit or × drags the pointer straight across it.
+         *
+         * Opening on pointerdown was tried, to save the few milliseconds
+         * between press and release. It breaks the focus handoff: the menu opens,
+         * the effect below focuses the active option, and then mousedown's
+         * default action pulls focus back to this button — so Escape and the
+         * arrow keys go to the trigger and the menu stops responding. Suppressing
+         * that needs preventDefault on the pointer events, which trades a
+         * measurable few milliseconds for focus behaviour jsdom cannot verify.
+         */
+        onClick={toggle}
       >
         {OUTREACH_LABELS[value]}
         <span className="status__caret" aria-hidden="true" />
