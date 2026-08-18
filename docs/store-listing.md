@@ -30,7 +30,7 @@ Productivity
 >
 > • Save a recruiter from their LinkedIn profile — name, headline, company, and how you found them
 > • Record why they mattered, in a note you will thank yourself for
-> • Track outreach: not contacted, messaged, replied, referred
+> • Track outreach: not contacted, messaged, referred, closed
 > • Search across names, companies, and your own notes
 > • Filter to everyone you have never contacted — the list that matters when a role opens
 > • Save job descriptions and export them as clean text
