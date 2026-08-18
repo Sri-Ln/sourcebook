@@ -16,8 +16,8 @@ An extension runs inside the authenticated session. It can reach text no server-
 
 ## What it does
 
-- **Save a recruiter** from a LinkedIn profile, capturing name, headline, company, and — importantly — *how you found them*.
-- **Track outreach state** (not contacted → messaged → replied → referred) so the list is actionable rather than an archive.
+- **Save a recruiter** from a LinkedIn profile, capturing name, headline, and company.
+- **Track outreach state** (not contacted → messaged → referred) so the list is actionable rather than an archive.
 - **Save a job description** and export every unsent one to the clipboard, already formatted for rolecraft's inbox.
 
 ## What it deliberately does not do
